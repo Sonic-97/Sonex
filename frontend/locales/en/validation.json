@@ -1,0 +1,15 @@
+{
+  "required": "{field} is required",
+  "invalidEmail": "Invalid email address",
+  "invalidPhone": "Invalid phone number",
+  "minLength": "{field} must be at least {min} characters",
+  "maxLength": "{field} must be at most {max} characters",
+  "min": "{field} must be at least {min}",
+  "max": "{field} must be at most {max}",
+  "number": "{field} must be a number",
+  "positive": "{field} must be positive",
+  "dateRange": "Date range cannot exceed 1 year",
+  "invalidDate": "Invalid date",
+  "invalidFormat": "Invalid format",
+  "mustMatch": "{field} must match {otherField}"
+}

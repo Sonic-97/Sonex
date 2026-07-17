@@ -1,0 +1,2615 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model SuperAdmin {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  username  String   @unique
+  password  String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("super_admins")
+}
+
+model Cafe {
+  id                     String                 @id @default(dbgenerated("(gen_random_uuid())::text"))
+  name                   String
+  phone                  String                 @unique
+  address                String?
+  logo                   String?
+  ownerCode              String                 @unique
+  ownerPassword          String
+  active                 Boolean                @default(true)
+  cafeCode               String?                @unique @map("cafe_code")
+  category               String?
+  currency               String                 @default("EGP")
+  timezone               String                 @default("Africa/Cairo")
+  configuration          Json                   @default("{}")
+  whatsappPhoneId        String?                @map("whatsapp_phone_id")
+  whatsappBusinessId     String?                @map("whatsapp_business_id")
+  whatsappAccessToken    String?                @map("whatsapp_access_token")
+  ownerId                String?                @map("owner_id")
+  createdAt              DateTime               @default(now()) @db.Timestamptz(6)
+  updatedAt              DateTime               @updatedAt @db.Timestamptz(6)
+  orders                 Order[]
+  staffs                 Staff[]
+  addOnIngredients       AddOnIngredient[]
+  aiLogs                 AILog[]
+  analyticsCaches        AnalyticsCache[]
+  attendances            Attendance[]
+  auditLogs              AuditLog[]
+  subscription           BillingSubscription?
+  branchProducts         BranchProduct[]
+  branches               Branch[]
+  cashHandovers          CashHandover[]
+  costSnapshots          CostSnapshot[]
+  customUnits            CustomUnit[]
+  customerHabits         CustomerHabit[]
+  customers              Customer[]
+  dailyRevenues          DailyRevenue[]
+  deadLetters            DeadLetter[]
+  debts                  Debt[]
+  driversCashSettlements DriverCashSettlement[]
+  driverEarnings         DriverEarning[]
+  drivers                Driver[]
+  employeePayments       EmployeePayment[]
+  expenses               Expense[]
+  financialTransactions  FinancialTransaction[]
+  fraudAlerts            FraudAlert[]
+  inCafeOrderItems       InCafeOrderItem[]
+  inCafeOrders           InCafeOrder[]
+  inventories            Inventory[]
+  inventoryConsumptions  InventoryConsumption[]
+  inventoryPurchases     InventoryPurchase[]
+  inventorySyncLogs      InventorySyncLog[]
+  invoices               Invoice[]
+  lidMappings            LidMapping[]
+  messages               Message[]
+  notifications          Notification[]
+  packagingMaterials     PackagingMaterial[]
+  paymentLogs            PaymentLog[]
+  payments               Payment[]
+  pendingReplies         PendingReply[]
+  playstationDevices     PlayStationDevice[]
+  playstationPricing     PlayStationPricing?
+  playstationSessions    PlayStationSession[]
+  priceChangeLogs        PriceChangeLog[]
+  priceOverrides         PriceOverride[]
+  processedMessages      ProcessedMessage[]
+  productCategories      ProductCategory[]
+  productOptions         ProductOption[]
+  productSizes           ProductSize[]
+  products               Product[]
+  pushSubscriptions      PushSubscription[]
+  queueJobLogs           QueueJobLog[]
+  recipeIngredients      RecipeIngredient[]
+  recipeVersions         RecipeVersion[]
+  refrigeratorCategories RefrigeratorCategory[]
+  reportJobs             ReportJob[]
+  staffEarnings          StaffEarning[]
+  staffPerformances      StaffPerformance[]
+  staffPurchases         StaffPurchase[]
+  stockLedgerEntries     StockLedger[]
+  stockReservations      StockReservation[]
+  suggestionFeedback     SuggestionFeedback[]
+  suggestions            Suggestion[]
+  whatsappCustomers      WhatsappCustomer[]
+  whatsappLogs           WhatsAppLog[]
+  telegramChats          TelegramChat[]
+  telegramSessions       TelegramSession[]
+  telegramMessageLogs    TelegramMessageLog[]
+  telegramBotToken       String?                @unique @map("telegram_bot_token")
+  telegramBotUsername    String?                @map("telegram_bot_username")
+  telegramWebhookToken   String?                @map("telegram_webhook_token")
+  telegramEnabled        Boolean                @default(false) @map("telegram_enabled")
+  telegramCafeToken      String?                @unique @map("telegram_cafe_token")
+  unifiedOrders          UnifiedOrder[]
+  unifiedOrderItems      UnifiedOrderItem[]
+  unifiedOrderStatusHistories UnifiedOrderStatusHistory[]
+  unifiedRefunds         UnifiedRefund[]
+  merchantOrders         MerchantOrder[]
+  merchantAvailability   MerchantAvailability?
+  onboardingSessions     OnboardingSession[]
+  taxes                  Tax[]
+  paymentMethods         PaymentMethod[]
+  suppliers              Supplier[]
+  dynamicPricingRules    DynamicPricingRule[]
+
+  @@index([ownerCode])
+  @@index([phone])
+  @@map("cafes")
+}
+
+model Branch {
+  id                    String                 @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                String                 @map("cafe_id")
+  name                  String
+  slug                  String
+  location              String?
+  phone                 String?
+  active                Boolean                @default(true)
+  createdAt             DateTime               @default(now()) @db.Timestamptz(6)
+  orders                Order[]
+  staffs                Staff[]
+  analyticsCaches       AnalyticsCache[]
+  branchProducts        BranchProduct[]
+  cafe                  Cafe                   @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  customers             Customer[]
+  dailyRevenues         DailyRevenue[]
+  debts                 Debt[]
+  driverCashSettlements DriverCashSettlement[]
+  driverEarnings        DriverEarning[]
+  drivers               Driver[]
+  employeePayments      EmployeePayment[]
+  expenses              Expense[]
+  inCafeOrders          InCafeOrder[]
+  inventories           Inventory[]
+  inventoryPurchases    InventoryPurchase[]
+  inventorySyncLogs     InventorySyncLog[]
+  notifications         Notification[]
+  paymentLogs           PaymentLog[]
+  payments              Payment[]
+  priceOverrides        PriceOverride[]
+  productCategories     ProductCategory[]
+  products              Product[]
+  pushSubscriptions     PushSubscription[]
+  reportJobs            ReportJob[]
+  staffEarnings         StaffEarning[]
+  staffPerformances     StaffPerformance[]
+  staffPurchases        StaffPurchase[]
+  whatsappCustomers     WhatsappCustomer[]
+  unifiedOrders         UnifiedOrder[]
+  unifiedOrderItems     UnifiedOrderItem[]
+
+  @@unique([cafeId, slug])
+  @@index([cafeId])
+  @@map("branches")
+}
+
+model Customer {
+  id                String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId            String         @map("cafe_id")
+  branchId          String         @map("branch_id")
+  phone             String
+  name              String?
+  preferredLanguage String?                @default("ar-EG")
+  favoriteDrink     String?
+  totalOrders       Int            @default(0)
+  totalSpent        Decimal        @default(0) @db.Decimal(10, 2)
+  unpaidBalance     Decimal        @default(0) @db.Decimal(10, 2)
+  lastOrderDate     DateTime?      @db.Timestamptz(6)
+  preferredProducts Json?
+  savedAddresses    Json           @default("[]")
+  totalCafeVisits   Int            @default(0)
+  totalCafeSpent    Decimal        @default(0) @db.Decimal(10, 2)
+  createdAt         DateTime       @default(now()) @db.Timestamptz(6)
+  phoneJid          String?        @map("phone_jid")
+  lastResolvedAt    DateTime?      @db.Timestamptz(6)
+  lastKnownJid      String?        @map("last_known_jid")
+  lidJid            String?        @map("lid_jid")
+  telegramId        BigInt?        @map("telegram_id")
+  telegramUsername  String?        @map("telegram_username")
+  orders            Order[]
+  habit             CustomerHabit?
+  branch            Branch         @relation(fields: [branchId], references: [id])
+  cafe              Cafe           @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  debts             Debt[]
+  inCafeOrders      InCafeOrder[]  @relation("CafeOrders")
+  suggestions       Suggestion[]
+  telegramChats     TelegramChat[]
+  unifiedOrders     UnifiedOrder[] @relation("UnifiedCustomerOrders")
+
+  @@unique([cafeId, branchId, phone])
+  @@unique([cafeId, telegramId])
+  @@index([cafeId, branchId, name])
+  @@index([phoneJid])
+  @@index([lidJid])
+  @@index([telegramId])
+  @@map("customers")
+}
+
+model Staff {
+  id                        String                 @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                    String                 @map("cafe_id")
+  branchId                  String                 @map("branch_id")
+  name                      String
+  email                     String?                @unique
+  role                      String
+  phone                     String                 @unique
+  pinHash                   String
+  active                    Boolean                @default(true)
+  loginCode                 String?                @unique
+  password                  String?                @map("password")
+  salary                    Decimal                @default(0) @db.Decimal(10, 2)
+  salaryType                String                 @default("MONTHLY")
+  language                  String                 @default("en")
+  hourlyWage                Decimal?               @default(0) @db.Decimal(10, 2)
+  currentCashWallet         Decimal                @default(0) @db.Decimal(10, 2)
+  collectedPayments         Order[]                @relation("CollectedPayments")
+  createdOrders             Order[]                @relation("OrderCreatedBy")
+  broughtOrders             Order[]                @relation("OrderBroughtBy")
+  orders                    Order[]
+  branch                    Branch                 @relation(fields: [branchId], references: [id])
+  cafe                      Cafe                   @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  attendances               Attendance[]
+  cashHandovers             CashHandover[]
+  approvedSettlements       DriverCashSettlement[] @relation("ApprovedSettlements")
+  employeePayments          EmployeePayment[]
+  expenses                  Expense[]
+  financialTransactions     FinancialTransaction[]
+  cafeOrders                InCafeOrder[]          @relation("CafeCreatedBy")
+  broughtInCafeOrders       InCafeOrder[]          @relation("InCafeOrderBroughtBy")
+  inventoryPurchases        InventoryPurchase[]
+  notifications             Notification[]
+  paymentLogs               PaymentLog[]
+  playstationSessionsClosed PlayStationSession[]   @relation("PSClosedBy")
+  playstationSessions       PlayStationSession[]   @relation("PSOpenedBy")
+  priceChanges              PriceChangeLog[]
+  priceOverrides            PriceOverride[]
+  pushSubscription          PushSubscription?
+  refreshTokens             RefreshToken[]
+  reportJobs                ReportJob[]
+  earning                   StaffEarning?
+  performances              StaffPerformance[]
+  purchases                 StaffPurchase[]
+  unifiedCreatedOrders      UnifiedOrder[]     @relation("UnifiedOrderCreatedBy")
+  unifiedCollectedOrders    UnifiedOrder[]     @relation("UnifiedOrderCollectedBy")
+  unifiedBroughtOrders      UnifiedOrder[]     @relation("UnifiedOrderBroughtBy")
+  unifiedRefunds            UnifiedRefund[]
+
+  @@index([cafeId, branchId])
+  @@index([cafeId, role])
+  @@index([loginCode])
+  @@index([active])
+}
+
+model Attendance {
+  id         String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId     String    @map("cafe_id")
+  staffId    String    @map("staff_id")
+  clockIn    DateTime  @map("clock_in") @db.Timestamptz(6)
+  clockOut   DateTime? @map("clock_out") @db.Timestamptz(6)
+  totalHours Float?    @map("total_hours")
+  date       DateTime  @db.Date
+  status     String    @default("ACTIVE")
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  cafe       Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  staff      Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, staffId])
+  @@index([cafeId, date])
+  @@index([cafeId, date, status])
+  @@index([cafeId, staffId, date])
+  @@index([status])
+  @@map("attendances")
+}
+
+model CashHandover {
+  id               String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId           String    @map("cafe_id")
+  staffId          String    @map("staff_id")
+  amount           Decimal   @default(0) @db.Decimal(10, 2)
+  status           String    @default("ACTIVE")
+  notes            String?
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+  confirmedByOwner DateTime? @db.Timestamptz(6)
+  deliveredCash    Decimal?  @db.Decimal(10, 2)
+  expectedCash     Decimal   @default(0) @db.Decimal(10, 2)
+  shiftEnd         DateTime? @db.Timestamptz(6)
+  shiftStart       DateTime  @default(now()) @db.Timestamptz(6)
+  cafe             Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  staff            Staff     @relation(fields: [staffId], references: [id])
+
+  @@index([cafeId, staffId])
+  @@index([createdAt])
+  @@index([status])
+  @@map("cash_handovers")
+}
+
+model RefreshToken {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  token     String   @unique
+  userId    String
+  expiresAt DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  user      Staff    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model ProductCategory {
+  id        String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String    @map("cafe_id")
+  branchId  String?   @map("branch_id")
+  name      String
+  icon      String?
+  sortOrder Int       @default(0)
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  color     String?
+  code      String?   @map("code")
+  branch    Branch?   @relation(fields: [branchId], references: [id])
+  cafe      Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  products  Product[]
+
+  @@unique([cafeId, branchId, name])
+  @@unique([cafeId, code])
+  @@index([cafeId, branchId])
+  @@map("product_categories")
+}
+
+model RefrigeratorCategory {
+  id        String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String    @map("cafe_id")
+  name      String
+  emoji     String    @default("🥤")
+  active    Boolean   @default(true)
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  products  Product[] @relation("RefrigeratorProducts")
+  cafe      Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId])
+  @@map("refrigerator_categories")
+}
+
+model Product {
+  id                      String                @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                  String                @map("cafe_id")
+  branchId                String?               @map("branch_id")
+  name                    String
+  category                String                @default("general")
+  categoryId              String?               @map("category_id")
+  description             String?
+  understandingTags       Json                  @default("[]") @map("understanding_tags")
+  price                   Decimal               @db.Decimal
+  cost                    Decimal               @db.Decimal
+  cafePrice               Decimal?              @db.Decimal
+  active                  Boolean               @default(true)
+  emoji                   String                @default("")
+  images                  Json                  @default("[]")
+  attributes              Json                  @default("[]")
+  tags                    Json                  @default("[]")
+  variants                Json                  @default("[]")
+  availability            Json                  @default("{}")
+  isRefrigerated          Boolean               @default(false)
+  lowStockThreshold       Int                   @default(0)
+  refrigeratorStock       Int                   @default(0)
+  refrigeratorCategoryId  String?               @map("refrigerator_category_id")
+  refrigeratorInventoryId String?               @map("refrigerator_inventory_id")
+  code                    String?               @map("code")
+  orderItems              OrderItem[]
+  addOns                  AddOnIngredient[]
+  branchProducts          BranchProduct[]
+  costSnapshots           CostSnapshot[]
+  cafeOrderItems          InCafeOrderItem[]
+  packaging               PackagingMaterial[]
+  priceChanges            PriceChangeLog[]
+  priceOverrides          PriceOverride[]
+  options                 ProductOption[]
+  sizes                   ProductSize[]
+  branch                  Branch?               @relation(fields: [branchId], references: [id])
+  cafe                    Cafe                  @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  categoryRel             ProductCategory?      @relation(fields: [categoryId], references: [id])
+  refrigeratorCategory    RefrigeratorCategory? @relation("RefrigeratorProducts", fields: [refrigeratorCategoryId], references: [id])
+  refrigeratorInventory   Inventory?            @relation("RefrigeratorInventory", fields: [refrigeratorInventoryId], references: [id])
+  recipe                  RecipeIngredient[]
+  recipeVersions          RecipeVersion[]
+  staffPurchases          StaffPurchase[]
+  favoriteInHabits        CustomerHabit[]       @relation("CustomerFavoriteProduct")
+  unifiedOrderItems        UnifiedOrderItem[]
+
+  @@unique([cafeId, code])
+  @@index([cafeId, branchId])
+  @@index([cafeId, branchId, active])
+  @@index([refrigeratorCategoryId])
+  @@map("products")
+}
+
+model RecipeIngredient {
+  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId       String    @map("cafe_id")
+  productId    String    @map("product_id")
+  inventoryId  String    @map("inventory_id")
+  quantity     Decimal   @db.Decimal(10, 3)
+  unit         String    @default("g")
+  notes        String?
+  emoji        String?   @default("🫘")
+  wastePercent Decimal   @default(0) @db.Decimal(5, 2)
+  cafe         Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  inventory    Inventory @relation(fields: [inventoryId], references: [id])
+  product      Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cafeId, productId, inventoryId])
+  @@index([cafeId, inventoryId])
+  @@map("recipe_ingredients")
+}
+
+model RecipeVersion {
+  id            String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId        String   @map("cafe_id")
+  productId     String   @map("product_id")
+  versionNumber Int
+  snapshot      Json
+  totalCost     Decimal  @db.Decimal(10, 2)
+  createdBy     String?
+  createdAt     DateTime @default(now()) @db.Timestamptz(6)
+  cafe          Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, productId])
+  @@map("recipe_versions")
+}
+
+model ProductSize {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String   @map("cafe_id")
+  productId   String   @map("product_id")
+  name        String
+  sortOrder   Int      @default(0)
+  priceAdjust Decimal  @default(0) @db.Decimal(10, 2)
+  costPercent Decimal  @default(100) @db.Decimal(5, 2)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  cafe        Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cafeId, productId, name])
+  @@index([cafeId, productId])
+  @@map("product_sizes")
+}
+
+model AddOnIngredient {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String    @map("cafe_id")
+  productId   String    @map("product_id")
+  name        String
+  price       Decimal   @default(0) @db.Decimal(10, 2)
+  inventoryId String    @map("inventory_id")
+  quantity    Decimal   @db.Decimal(10, 3)
+  unit        String    @default("g")
+  active      Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  cafe        Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, productId])
+  @@map("add_on_ingredients")
+}
+
+model PackagingMaterial {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String    @map("cafe_id")
+  productId   String    @map("product_id")
+  name        String
+  inventoryId String    @map("inventory_id")
+  quantity    Decimal   @default(1) @db.Decimal(10, 3)
+  unit        String    @default("piece")
+  cafe        Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, productId])
+  @@map("packaging_materials")
+}
+
+model CostSnapshot {
+  id             String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String   @map("cafe_id")
+  productId      String   @map("product_id")
+  orderItemId    String?  @map("order_item_id")
+  ingredientCost Decimal  @db.Decimal(10, 2)
+  packagingCost  Decimal  @default(0) @db.Decimal(10, 2)
+  laborCost      Decimal  @default(0) @db.Decimal(10, 2)
+  overheadCost   Decimal  @default(0) @db.Decimal(10, 2)
+  totalCost      Decimal  @db.Decimal(10, 2)
+  sellingPrice   Decimal  @db.Decimal(10, 2)
+  sizeName       String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  cafe           Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, productId])
+  @@index([cafeId, createdAt])
+  @@map("cost_snapshots")
+}
+
+model ProductOption {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String   @map("cafe_id")
+  productId   String   @map("product_id")
+  name        String
+  required    Boolean  @default(false)
+  multiSelect Boolean  @default(false)
+  choices     Json     @default("[]")
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  cafe        Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, productId])
+  @@map("product_options")
+}
+
+model PriceChangeLog {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String   @map("cafe_id")
+  productId   String   @map("product_id")
+  oldPrice    Decimal  @db.Decimal(10, 2)
+  newPrice    Decimal  @db.Decimal(10, 2)
+  oldCost     Decimal? @db.Decimal(10, 2)
+  newCost     Decimal? @db.Decimal(10, 2)
+  changedById String?  @map("changed_by_id")
+  reason      String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  cafe        Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  changedBy   Staff?   @relation(fields: [changedById], references: [id])
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, productId])
+  @@index([cafeId, createdAt])
+  @@map("price_change_logs")
+}
+
+model Driver {
+  id                   String                 @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId               String                 @map("cafe_id")
+  branchId             String                 @map("branch_id")
+  name                 String
+  phone                String                 @unique
+  active               Boolean                @default(true)
+  totalDeliveries      Int                    @default(0)
+  totalRevenue         Decimal                @default(0) @db.Decimal(10, 2)
+  newCustomersAcquired Int                    @default(0)
+  bonusEligible        Boolean                @default(false)
+  createdAt            DateTime               @default(now()) @db.Timestamptz(6)
+  orders               Order[]
+  cashSettlements      DriverCashSettlement[]
+  earning              DriverEarning?
+  branch               Branch                 @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  cafe                 Cafe                   @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  unifiedOrders           UnifiedOrder[]
+  customerOrders          CustomerOrder[]
+  dispatchAssignments     DriverAssignment[]
+  driverStatus            String                @default("OFFLINE") @map("driver_status")
+  merchantZoneId          String?               @map("merchant_zone_id")
+  vehicleType             String                @default("motorcycle") @map("vehicle_type")
+  currentLatitude         Decimal?              @db.Decimal(10, 7) @map("current_latitude")
+  currentLongitude        Decimal?              @db.Decimal(10, 7) @map("current_longitude")
+  currentLocation         Json                  @default("{}") @map("current_location")
+  capacity                Int                   @default(1)
+  activeAssignments       Int                   @default(0) @map("active_assignments")
+  lastHeartbeat           DateTime?             @map("last_heartbeat")
+  acceptanceRate          Decimal               @default(1.0) @db.Decimal(3, 2) @map("acceptance_rate")
+
+  @@index([cafeId, branchId])
+  @@index([cafeId, active])
+  @@index([driverStatus])
+  @@index([merchantZoneId])
+  @@map("drivers")
+}
+
+model Order {
+  id                   String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  code                 String       @unique
+  cafeId               String       @map("cafe_id")
+  branchId             String       @map("branch_id")
+  customerId           String
+  staffId              String?
+  driverId             String?
+  status               String       @default("NEW")
+  type                 String
+  total                Decimal      @db.Decimal(10, 2)
+  profit               Decimal?     @db.Decimal(10, 2)
+  paid                 Boolean      @default(false)
+  paymentStatus        String       @default("UNPAID")
+  amountPaid           Decimal      @default(0) @db.Decimal(10, 2)
+  remainingAmount      Decimal      @default(0) @db.Decimal(10, 2)
+  paidAt               DateTime?    @db.Timestamptz(6)
+  collectedById        String?      @map("collected_by_id")
+  collectedRole        String?
+  paymentMethod        String?
+  address              String?
+  printSent            Boolean      @default(false)
+  isRevenueConfirmed   Boolean      @default(false)
+  stockDeducted        Boolean      @default(false)
+  source               String       @default("IN_CAFE")
+  createdAt            DateTime     @default(now()) @db.Timestamptz(6)
+  confirmedAt          DateTime?    @db.Timestamptz(6)
+  preparedAt           DateTime?    @db.Timestamptz(6)
+  readyAt              DateTime?    @db.Timestamptz(6)
+  pickedUpAt           DateTime?    @db.Timestamptz(6)
+  deliveredAt          DateTime?    @db.Timestamptz(6)
+  closedAt             DateTime?    @db.Timestamptz(6)
+  cancelledAt          DateTime?    @db.Timestamptz(6)
+  cashCollected        Decimal      @default(0) @db.Decimal(10, 2)
+  cashDeliveredToOwner Decimal      @default(0) @db.Decimal(10, 2)
+  outstandingDebt      Decimal      @default(0) @db.Decimal(10, 2)
+  createdById          String?      @map("created_by_id")
+  employeeId           String?      @map("employee_id")
+  sourceType           String       @default("INSIDE_CAFE")
+  externalId           String?      @map("external_id")
+  version              Int          @default(1)
+  branch               Branch       @relation(fields: [branchId], references: [id])
+  cafe                 Cafe         @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  collectedBy          Staff?       @relation("CollectedPayments", fields: [collectedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdBy            Staff?       @relation("OrderCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customer             Customer     @relation(fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  driver               Driver?      @relation(fields: [driverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  employee             Staff?       @relation("OrderBroughtBy", fields: [employeeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  staff                Staff?       @relation(fields: [staffId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  items                OrderItem[]
+  debtRecords          Debt[]
+  paymentLogs          PaymentLog[]
+  payments             Payment[]
+
+  @@unique([cafeId, externalId])
+  @@index([cafeId, branchId])
+  @@index([cafeId, branchId, status])
+  @@index([cafeId, branchId, createdAt])
+  @@index([cafeId, status, createdAt])
+  @@index([cafeId, paymentStatus, paidAt])
+  @@index([cafeId, driverId])
+  @@index([cafeId, staffId])
+  @@index([cafeId, isRevenueConfirmed])
+  @@index([paymentStatus])
+  @@index([status])
+  @@index([customerId])
+  @@index([sourceType])
+  @@index([employeeId])
+  @@index([createdById])
+}
+
+model OrderItem {
+  id              String  @id @default(dbgenerated("(gen_random_uuid())::text"))
+  orderId         String
+  productId       String
+  quantity        Int
+  unitPrice       Decimal @db.Decimal
+  notes           String?
+  selectedOptions Json    @default("[]") @map("selected_options")
+  order           Order   @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  product         Product @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([productId])
+  @@index([orderId])
+  @@index([productId, orderId])
+}
+
+model Inventory {
+  id                   String                 @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId               String                 @map("cafe_id")
+  branchId             String                 @map("branch_id")
+  itemName             String
+  unit                 String
+  currentQty           Decimal                @db.Decimal
+  minThreshold         Decimal                @db.Decimal
+  costPerUnit          Decimal                @db.Decimal
+  updatedAt            DateTime               @updatedAt @db.Timestamptz(6)
+  code                 String?                @map("code")
+  emoji                String                 @default("📦")
+  reservedQty          Decimal                @default(0) @db.Decimal
+  version              Int                    @default(1)
+  addOnUses            AddOnIngredient[]
+  branch               Branch                 @relation(fields: [branchId], references: [id])
+  cafe                 Cafe                   @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  consumptionLogs      InventoryConsumption[]
+  purchases            InventoryPurchase[]
+  syncLogs             InventorySyncLog[]
+  packagingUses        PackagingMaterial[]
+  refrigeratorProducts Product[]              @relation("RefrigeratorInventory")
+  recipeUses           RecipeIngredient[]
+  ledgerEntries        StockLedger[]
+  reservations         StockReservation[]
+
+  @@unique([cafeId, code])
+  @@index([cafeId, branchId])
+  @@index([cafeId, branchId, itemName])
+  @@map("inventories")
+}
+
+model CustomUnit {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String   @map("cafe_id")
+  name      String
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@unique([cafeId, name])
+  @@index([cafeId])
+  @@map("custom_units")
+}
+
+model Message {
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId     String   @map("cafe_id")
+  phone      String
+  content    String
+  role       String   @default("customer")
+  aiResponse Json?
+  intent     String?
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
+  cafe       Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, phone, createdAt])
+  @@index([phone])
+  @@map("messages")
+}
+
+model WhatsAppLog {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String   @map("cafe_id")
+  messageId String?  @unique
+  phone     String
+  message   String
+  direction String   @default("inbound")
+  aiResult  Json?
+  orderId   String?
+  status    String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, phone, createdAt])
+  @@map("whatsapp_logs")
+}
+
+model Payment {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String   @map("cafe_id")
+  branchId  String   @map("branch_id")
+  orderId   String
+  amount    Decimal  @db.Decimal(10, 2)
+  method    String   @default("CASH")
+  status    String   @default("PAID")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([cafeId, branchId])
+  @@map("payments")
+}
+
+model Debt {
+  id              String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String    @map("cafe_id")
+  branchId        String    @map("branch_id")
+  customerId      String
+  orderId         String?   @map("order_id")
+  amount          Decimal   @db.Decimal(10, 2)
+  reason          String?
+  collectedByRole String?
+  settled         Boolean   @default(false)
+  settledAt       DateTime? @db.Timestamptz(6)
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  branch          Branch    @relation(fields: [branchId], references: [id])
+  cafe            Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  customer        Customer  @relation(fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  order           Order?    @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([cafeId, branchId])
+  @@index([orderId])
+  @@index([customerId, settled])
+  @@map("debts")
+}
+
+model EmployeePayment {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String   @map("cafe_id")
+  branchId  String   @map("branch_id")
+  staffId   String   @map("staff_id")
+  amount    Decimal  @db.Decimal(10, 2)
+  type      String
+  date      DateTime @db.Date
+  notes     String?
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  staff     Staff    @relation(fields: [staffId], references: [id])
+
+  @@index([cafeId, branchId])
+  @@index([cafeId, staffId])
+  @@index([cafeId, date])
+  @@index([cafeId, type])
+  @@map("employee_payments")
+}
+
+model PaymentLog {
+  id             String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String   @map("cafe_id")
+  branchId       String   @map("branch_id")
+  orderId        String   @map("order_id")
+  previousStatus String   @default("UNPAID")
+  newStatus      String
+  amount         Decimal  @db.Decimal(10, 2)
+  method         String?
+  collectedById  String?  @map("collected_by_id")
+  collectedRole  String?
+  notes          String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  branch         Branch   @relation(fields: [branchId], references: [id])
+  cafe           Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  collectedBy    Staff?   @relation(fields: [collectedById], references: [id])
+  order          Order    @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([cafeId, branchId])
+  @@index([orderId])
+  @@index([collectedById])
+  @@index([collectedRole])
+  @@index([createdAt])
+  @@map("payment_logs")
+}
+
+model DailyRevenue {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String   @map("cafe_id")
+  branchId        String?  @map("branch_id")
+  date            DateTime @db.Date
+  totalRevenue    Decimal  @default(0) @db.Decimal(12, 2)
+  totalProfit     Decimal  @default(0) @db.Decimal(12, 2)
+  totalOrders     Int      @default(0)
+  cafeRevenue     Decimal  @default(0) @db.Decimal(12, 2)
+  cafeOrders      Int      @default(0)
+  staffCosts      Decimal  @default(0) @db.Decimal(12, 2)
+  unpaidCafeTotal Decimal  @default(0) @db.Decimal(12, 2)
+  branch          Branch?  @relation(fields: [branchId], references: [id])
+  cafe            Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@unique([cafeId, branchId, date])
+  @@index([cafeId, branchId])
+  @@map("daily_revenues")
+}
+
+model StaffEarning {
+  id                 String  @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId             String  @map("cafe_id")
+  branchId           String? @map("branch_id")
+  staffId            String  @unique
+  totalOrdersHandled Int     @default(0)
+  bonus              Decimal @default(0) @db.Decimal(10, 2)
+  totalEarnings      Decimal @default(0) @db.Decimal(10, 2)
+  branch             Branch? @relation(fields: [branchId], references: [id])
+  cafe               Cafe    @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  staff              Staff   @relation(fields: [staffId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([cafeId, branchId])
+  @@map("staff_earnings")
+}
+
+model DriverEarning {
+  id         String  @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId     String  @map("cafe_id")
+  branchId   String? @map("branch_id")
+  driverId   String  @unique
+  deliveries Int     @default(0)
+  earnings   Decimal @default(0) @db.Decimal(10, 2)
+  branch     Branch? @relation(fields: [branchId], references: [id])
+  cafe       Cafe    @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  driver     Driver  @relation(fields: [driverId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([cafeId, branchId])
+  @@map("driver_earnings")
+}
+
+model StaffPerformance {
+  id                      String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                  String   @map("cafe_id")
+  branchId                String?  @map("branch_id")
+  staffId                 String
+  date                    DateTime @db.Date
+  ordersHandled           Int      @default(0)
+  totalRevenue            Decimal  @default(0) @db.Decimal(10, 2)
+  totalProfitContribution Decimal  @default(0) @db.Decimal(10, 2)
+  avgOrderProcessingTime  Float    @default(0)
+  cancellationCount       Int      @default(0)
+  completionRate          Float    @default(100)
+  efficiencyScore         Float    @default(50)
+  revenueScore            Float    @default(50)
+  speedScore              Float    @default(50)
+  reliabilityScore        Float    @default(50)
+  overallScore            Float    @default(50)
+  branch                  Branch?  @relation(fields: [branchId], references: [id])
+  cafe                    Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  staff                   Staff    @relation(fields: [staffId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([cafeId, staffId, date])
+  @@index([cafeId, branchId])
+  @@index([staffId])
+  @@index([date])
+  @@index([overallScore])
+  @@map("staff_performances")
+}
+
+model Expense {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String    @map("cafe_id")
+  branchId    String?   @map("branch_id")
+  category    String
+  amount      Decimal   @db.Decimal
+  description String?
+  expenseDate DateTime  @default(now()) @db.Timestamptz(6)
+  expenseType String?
+  paidAt      DateTime? @db.Timestamptz(6)
+  employeeId  String?   @map("employee_id")
+  branch      Branch?   @relation(fields: [branchId], references: [id])
+  cafe        Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  staff       Staff?    @relation(fields: [employeeId], references: [id])
+
+  @@index([cafeId, branchId])
+  @@index([cafeId, expenseDate])
+  @@index([cafeId, category])
+  @@index([employeeId])
+  @@map("expenses")
+}
+
+model QueueJobLog {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String?   @map("cafe_id")
+  jobId       String
+  queueName   String
+  eventType   String?
+  status      String    @default("pending")
+  payload     Json?
+  result      Json?
+  error       String?
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  completedAt DateTime? @db.Timestamptz(6)
+  cafe        Cafe?     @relation(fields: [cafeId], references: [id])
+
+  @@index([jobId])
+  @@index([queueName, status])
+  @@index([cafeId, createdAt])
+  @@map("queue_job_logs")
+}
+
+model InCafeOrder {
+  id                 String            @id @default(dbgenerated("(gen_random_uuid())::text"))
+  code               String            @unique
+  cafeId             String            @map("cafe_id")
+  branchId           String            @map("branch_id")
+  customerName       String            @default("Walk-in Customer")
+  customerPhone      String?
+  customerId         String?           @map("customer_id")
+  notes              String?
+  createdById        String?           @map("created_by_id")
+  status             String            @default("NEW")
+  isPaid             Boolean           @default(false)
+  paymentStatus      String            @default("NOT_PAID")
+  paymentMethod      String?
+  total              Decimal           @db.Decimal(10, 2)
+  paidAmount         Decimal           @default(0) @db.Decimal(10, 2)
+  remainingBalance   Decimal           @default(0) @db.Decimal(10, 2)
+  paymentTimestamp   DateTime?         @db.Timestamptz(6)
+  voidReason         String?
+  createdAt          DateTime          @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime          @updatedAt @db.Timestamptz(6)
+  orderType          String            @default("DINE_IN")
+  tableNumber        String?
+  employeeId         String?           @map("employee_id")
+  sourceType         String            @default("INSIDE_CAFE")
+  stockDeducted      Boolean           @default(false)
+  isRevenueConfirmed Boolean           @default(false)
+  items              InCafeOrderItem[]
+  branch             Branch            @relation(fields: [branchId], references: [id])
+  cafe               Cafe              @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  createdBy          Staff?            @relation("CafeCreatedBy", fields: [createdById], references: [id])
+  customer           Customer?         @relation("CafeOrders", fields: [customerId], references: [id])
+  employee           Staff?            @relation("InCafeOrderBroughtBy", fields: [employeeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  priceOverrides     PriceOverride[]
+
+  @@index([cafeId, customerId])
+  @@index([createdById])
+  @@index([paymentStatus])
+  @@index([createdAt])
+  @@index([cafeId, branchId])
+  @@index([cafeId, status, createdAt])
+  @@index([cafeId, paymentStatus, createdAt])
+  @@index([sourceType])
+  @@index([employeeId])
+  @@map("in_cafe_orders")
+}
+
+model InCafeOrderItem {
+  id              String      @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String      @map("cafe_id")
+  orderId         String      @map("order_id")
+  productId       String      @map("product_id")
+  quantity        Int
+  unitPrice       Decimal     @db.Decimal(10, 2)
+  notes           String?
+  selectedOptions Json        @default("[]") @map("selected_options")
+  cafe            Cafe        @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  order           InCafeOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product     @relation(fields: [productId], references: [id])
+
+  @@index([cafeId, orderId])
+  @@index([cafeId, productId, orderId])
+  @@map("in_cafe_order_items")
+}
+
+model PriceOverride {
+  id              String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String       @map("cafe_id")
+  branchId        String?      @map("branch_id")
+  inCafeOrderId   String?      @map("in_cafe_order_id")
+  productId       String       @map("product_id")
+  originalPrice   Decimal      @db.Decimal(10, 2)
+  overriddenPrice Decimal      @db.Decimal(10, 2)
+  reason          String
+  overriddenById  String       @map("overridden_by_id")
+  createdAt       DateTime     @default(now()) @db.Timestamptz(6)
+  branch          Branch?      @relation(fields: [branchId], references: [id])
+  cafe            Cafe         @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  inCafeOrder     InCafeOrder? @relation(fields: [inCafeOrderId], references: [id])
+  overriddenBy    Staff        @relation(fields: [overriddenById], references: [id])
+  product         Product      @relation(fields: [productId], references: [id])
+
+  @@index([inCafeOrderId])
+  @@index([overriddenById])
+  @@index([createdAt])
+  @@index([cafeId, branchId])
+  @@map("price_overrides")
+}
+
+model StaffPurchase {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String   @map("cafe_id")
+  branchId    String?  @map("branch_id")
+  productId   String   @map("product_id")
+  quantity    Int
+  customPrice Decimal?
+  finalCost   Decimal  @db.Decimal(10, 2)
+  staffId     String   @map("staff_id")
+  notes       String?
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  branch      Branch?  @relation(fields: [branchId], references: [id])
+  cafe        Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+  staff       Staff    @relation(fields: [staffId], references: [id])
+
+  @@index([staffId])
+  @@index([productId])
+  @@index([createdAt])
+  @@index([cafeId, branchId])
+  @@map("staff_purchases")
+}
+
+model CustomerHabit {
+  id                  String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId              String    @map("cafe_id")
+  customerId          String    @unique
+  avgOrderHour        Float     @default(0)
+  peakOrderHour       Int       @default(12)
+  orderHourStdDev     Float     @default(0)
+  avgIntervalDays     Float     @default(0)
+  intervalStdDev      Float     @default(0)
+  totalOrders         Int       @default(0)
+  frequencyPattern    String    @default("unknown")
+  topProducts         Json      @default("[]")
+  channelPreference   String    @default("any")
+  lifecycleStage      String    @default("new")
+  daysSinceLastOrder  Int       @default(0)
+  lastChannelType     String?
+  patternConsistency  Float     @default(0)
+  overallConfidence   Float     @default(0)
+  suggestionCount     Int       @default(0)
+  quietHourStart      Int?      @default(22)
+  quietHourEnd        Int?      @default(8)
+  isPaused            Boolean   @default(false)
+  favoriteProductId   String?   @map("favorite_product_id")
+  favoriteProductName String?
+  usualTime           String?   @map("usual_time")
+  preferredWeekdays   Json      @default("[]")
+  averageBasket       Decimal?  @map("average_basket") @db.Decimal(10, 2)
+  firstOrderDate      DateTime? @map("first_order_date") @db.Timestamptz(6)
+  aiWaiterActive      Boolean   @default(false) @map("ai_waiter_active")
+  lastProactiveSentAt DateTime? @map("last_proactive_sent_at") @db.Timestamptz(6)
+  updatedAt           DateTime  @updatedAt @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @db.Timestamptz(6)
+  cafe                Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  customer            Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  favoriteProduct     Product?  @relation("CustomerFavoriteProduct", fields: [favoriteProductId], references: [id])
+
+  @@index([cafeId, overallConfidence])
+  @@index([lifecycleStage])
+  @@index([cafeId, aiWaiterActive])
+  @@map("customer_habits")
+}
+
+model Suggestion {
+  id                 String              @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId             String              @map("cafe_id")
+  customerId         String
+  predictedHour      Int                 @default(12)
+  confidence         Float               @default(0)
+  predictedItems     Json                @default("[]")
+  suggestedMessage   String              @default("")
+  reasoning          String              @default("")
+  channelPrediction  String              @default("any")
+  status             String              @default("active")
+  ownerEditedMessage String?
+  ownerNote          String?
+  feedbackCorrect    Boolean?
+  feedbackAccuracy   Float?
+  createdAt          DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime            @updatedAt @db.Timestamptz(6)
+  feedback           SuggestionFeedback?
+  cafe               Cafe                @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  customer           Customer            @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, customerId, status])
+  @@index([cafeId, confidence])
+  @@index([cafeId, createdAt])
+  @@map("suggestions")
+}
+
+model SuggestionFeedback {
+  id           String     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId       String     @map("cafe_id")
+  suggestionId String     @unique
+  wasCorrect   Boolean    @default(false)
+  actualItems  Json?
+  actualHour   Int?
+  ownerRating  Int?       @default(3)
+  notes        String?
+  createdAt    DateTime   @default(now()) @db.Timestamptz(6)
+  cafe         Cafe       @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  suggestion   Suggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId])
+  @@map("suggestion_feedback")
+}
+
+model DriverCashSettlement {
+  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId       String    @map("cafe_id")
+  branchId     String?   @map("branch_id")
+  driverId     String
+  amount       Decimal   @db.Decimal(10, 2)
+  status       String    @default("PENDING")
+  approvedById String?
+  approvedAt   DateTime? @db.Timestamptz(6)
+  notes        String?
+  createdAt    DateTime  @default(now()) @db.Timestamptz(6)
+  approvedBy   Staff?    @relation("ApprovedSettlements", fields: [approvedById], references: [id])
+  branch       Branch?   @relation(fields: [branchId], references: [id])
+  cafe         Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  driver       Driver    @relation(fields: [driverId], references: [id])
+
+  @@index([driverId])
+  @@index([status])
+  @@index([cafeId, branchId])
+  @@map("driver_cash_settlements")
+}
+
+model InventoryPurchase {
+  id            String     @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId        String     @map("cafe_id")
+  branchId      String     @map("branch_id")
+  itemName      String
+  quantity      Float
+  unit          String     @default("kg")
+  cost          Float?
+  supplier      String?
+  purchasedById String?
+  notes         String?
+  inventoryId   String?    @map("inventory_id")
+  createdAt     DateTime   @default(now()) @db.Timestamptz(6)
+  branch        Branch     @relation(fields: [branchId], references: [id])
+  cafe          Cafe       @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  inventory     Inventory? @relation(fields: [inventoryId], references: [id])
+  purchasedBy   Staff?     @relation(fields: [purchasedById], references: [id])
+
+  @@index([cafeId, purchasedById])
+  @@index([cafeId, createdAt])
+  @@index([cafeId, branchId])
+  @@map("inventory_purchases")
+}
+
+model Notification {
+  id         String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId     String    @map("cafe_id")
+  branchId   String    @map("branch_id")
+  type       String
+  title      String
+  message    String
+  data       Json?
+  isRead     Boolean   @default(false)
+  readAt     DateTime? @db.Timestamptz(6)
+  userId     String?
+  roleTarget String
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(6)
+  branch     Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  cafe       Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  user       Staff?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, userId])
+  @@index([roleTarget])
+  @@index([type])
+  @@index([createdAt])
+  @@index([isRead])
+  @@index([cafeId, branchId])
+  @@map("notifications")
+}
+
+model ReportJob {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String    @map("cafe_id")
+  branchId    String?   @map("branch_id")
+  type        String
+  status      String    @default("pending")
+  fileUrl     String?
+  userId      String
+  filters     Json?
+  errorMsg    String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  completedAt DateTime? @db.Timestamptz(6)
+  expiresAt   DateTime?
+  branch      Branch?   @relation(fields: [branchId], references: [id])
+  cafe        Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  user        Staff     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, userId])
+  @@index([cafeId, createdAt])
+  @@index([status])
+  @@index([cafeId, branchId])
+  @@map("report_jobs")
+}
+
+model AnalyticsCache {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String   @map("cafe_id")
+  branchId  String   @map("branch_id")
+  key       String   @unique
+  value     Json
+  expiresAt DateTime @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  branch    Branch   @relation(fields: [branchId], references: [id])
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, expiresAt])
+  @@index([cafeId, branchId])
+  @@map("analytics_cache")
+}
+
+model PushSubscription {
+  id           String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId       String   @map("cafe_id")
+  staffId      String   @unique
+  branchId     String   @map("branch_id")
+  subscription Json
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @db.Timestamptz(6)
+  branch       Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  cafe         Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  staff        Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, staffId, branchId])
+  @@map("push_subscriptions")
+}
+
+model BranchProduct {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String   @map("cafe_id")
+  branchId    String   @map("branch_id")
+  productId   String   @map("product_id")
+  price       Float
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  branch      Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  cafe        Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cafeId, branchId, productId])
+  @@index([cafeId, branchId])
+  @@map("branch_products")
+}
+
+model InventorySyncLog {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String    @map("cafe_id")
+  inventoryId String    @map("inventory_id")
+  branchId    String    @map("branch_id")
+  orderId     String?   @map("order_id")
+  change      Int
+  status      String    @default("pending")
+  error       String?
+  retryCount  Int       @default(0)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @db.Timestamptz(6)
+  branch      Branch    @relation(fields: [branchId], references: [id])
+  cafe        Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  inventory   Inventory @relation(fields: [inventoryId], references: [id])
+
+  @@index([cafeId, branchId, status])
+  @@index([cafeId, createdAt])
+  @@index([cafeId, status, createdAt])
+  @@map("inventory_sync_logs")
+}
+
+model InventoryConsumption {
+  id            String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId        String    @map("cafe_id")
+  inventoryId   String    @map("inventory_id")
+  orderId       String?   @map("order_id")
+  inCafeOrderId String?   @map("in_cafe_order_id")
+  productId     String    @map("product_id")
+  productName   String    @map("product_name")
+  quantity      Decimal   @db.Decimal(10, 3)
+  unit          String
+  costPerUnit   Decimal   @db.Decimal(10, 2)
+  totalCost     Decimal   @db.Decimal(10, 2)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  cafe          Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  inventory     Inventory @relation(fields: [inventoryId], references: [id])
+
+  @@index([cafeId, inventoryId])
+  @@index([cafeId, createdAt])
+  @@index([cafeId, productId])
+  @@map("inventory_consumptions")
+}
+
+model WhatsappCustomer {
+  id            String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId        String    @map("cafe_id")
+  branchId      String?   @map("branch_id")
+  phoneNumber   String
+  name          String?
+  preferences   Json?
+  lastMessageAt DateTime? @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(6)
+  branch        Branch?   @relation(fields: [branchId], references: [id])
+  cafe          Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@unique([cafeId, phoneNumber])
+  @@index([cafeId, branchId])
+  @@map("whatsapp_customers")
+}
+
+model BillingSubscription {
+  id                   String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId               String    @unique @map("cafe_id")
+  plan                 String    @default("starter")
+  status               String    @default("active")
+  branchLimit          Int       @default(1)
+  staffLimit           Int       @default(5)
+  features             Json      @default("[]")
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  currentPeriodStart   DateTime? @db.Timestamptz(6)
+  currentPeriodEnd     DateTime? @db.Timestamptz(6)
+  trialEndsAt          DateTime? @db.Timestamptz(6)
+  canceledAt           DateTime? @db.Timestamptz(6)
+  createdAt            DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt            DateTime  @updatedAt @db.Timestamptz(6)
+  cafe                 Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  invoices             Invoice[]
+
+  @@map("billing_subscriptions")
+}
+
+model Invoice {
+  id              String              @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String              @map("cafe_id")
+  subscriptionId  String              @map("subscription_id")
+  stripeInvoiceId String?             @unique
+  amount          Decimal             @db.Decimal(10, 2)
+  currency        String              @default("usd")
+  status          String              @default("open")
+  paidAt          DateTime?           @db.Timestamptz(6)
+  pdfUrl          String?
+  dueDate         DateTime?           @db.Date
+  createdAt       DateTime            @default(now()) @db.Timestamptz(6)
+  items           InvoiceLineItem[]
+  cafe            Cafe                @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  subscription    BillingSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, subscriptionId])
+  @@index([cafeId, status])
+  @@index([cafeId, createdAt])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  invoiceId   String   @map("invoice_id")
+  description String
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_line_items")
+}
+
+model FraudAlert {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String    @map("cafe_id")
+  type        String
+  severity    String
+  description String
+  metadata    Json?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  resolvedAt  DateTime? @db.Timestamptz(6)
+  status      String    @default("active")
+  cafe        Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, severity])
+  @@index([cafeId, createdAt])
+  @@map("fraud_alerts")
+}
+
+model AILog {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String   @map("cafe_id")
+  userId          String?
+  userRole        String
+  message         String
+  detectedIntent  String
+  action          String
+  orderCreated    String?
+  inventoryChange Json?
+  suggestion      String?
+  accepted        Boolean?
+  timestamp       DateTime @default(now()) @db.Timestamptz(6)
+  cafe            Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, timestamp])
+  @@index([cafeId, userId])
+  @@map("ai_logs")
+}
+
+model PlayStationPricing {
+  id                      String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                  String   @unique @map("cafe_id")
+  singlePlayerHourlyPrice Decimal  @default(20.00) @db.Decimal(10, 2)
+  twoPlayersHourlyPrice   Decimal  @default(30.00) @db.Decimal(10, 2)
+  threePlayersHourlyPrice Decimal  @default(40.00) @db.Decimal(10, 2)
+  fourPlayersHourlyPrice  Decimal  @default(50.00) @db.Decimal(10, 2)
+  updatedAt               DateTime @updatedAt @db.Timestamptz(6)
+  cafe                    Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@map("playstation_pricings")
+}
+
+model PlayStationDevice {
+  id        String               @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String               @map("cafe_id")
+  name      String
+  active    Boolean              @default(true)
+  createdAt DateTime             @default(now()) @db.Timestamptz(6)
+  cafe      Cafe                 @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  sessions  PlayStationSession[]
+
+  @@unique([cafeId, name])
+  @@index([cafeId])
+  @@map("playstation_devices")
+}
+
+model PlayStationSession {
+  id                String            @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId            String            @map("cafe_id")
+  deviceId          String            @map("device_id")
+  customerName      String
+  sessionType       String
+  startTime         DateTime          @default(now()) @db.Timestamptz(6)
+  endTime           DateTime?         @db.Timestamptz(6)
+  duration          Int?
+  cost              Decimal?          @db.Decimal(10, 2)
+  paymentStatus     String            @default("UNPAID")
+  employeeId        String            @map("employee_id")
+  createdAt         DateTime          @default(now()) @db.Timestamptz(6)
+  status            String            @default("Pending Free Time")
+  closedById        String?           @map("closed_by_id")
+  paidAt            DateTime?         @db.Timestamptz(6)
+  billableStartTime DateTime?         @map("billable_start_time") @db.Timestamptz(6)
+  freePeriodEndTime DateTime?         @map("free_period_end_time") @db.Timestamptz(6)
+  cafe              Cafe              @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  closedBy          Staff?            @relation("PSClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
+  device            PlayStationDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  openedBy          Staff             @relation("PSOpenedBy", fields: [employeeId], references: [id])
+
+  @@index([cafeId])
+  @@index([deviceId])
+  @@index([createdAt])
+  @@index([status])
+  @@map("playstation_sessions")
+}
+
+model LidMapping {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String   @map("cafe_id")
+  lid         String   @unique
+  phone       String?
+  phoneJid    String?
+  displayName String?  @map("display_name")
+  firstSeenAt DateTime @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastSeenAt  DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  source      String   @default("message_incoming")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(6)
+  cafe        Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@unique([cafeId, lid])
+  @@index([cafeId, phone])
+  @@index([lid])
+  @@index([phone])
+  @@index([phoneJid])
+  @@index([cafeId])
+  @@map("lid_mappings")
+}
+
+model PendingReply {
+  id         String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId     String    @map("cafe_id")
+  lid        String
+  message    String
+  status     String    @default("pending")
+  resolvedAt DateTime? @map("resolved_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(6)
+  cafe       Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@unique([cafeId, lid, status, createdAt])
+  @@index([cafeId, lid, status])
+  @@index([cafeId])
+  @@map("pending_replies")
+}
+
+model FinancialTransaction {
+  id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String   @map("cafe_id")
+  amount      Decimal  @db.Decimal(10, 2)
+  type        String   @default("income")
+  source      String
+  referenceId String?  @map("reference_id")
+  employeeId  String?  @map("employee_id")
+  createdAt   DateTime @default(now()) @db.Timestamptz(6)
+  cafe        Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  staff       Staff?   @relation(fields: [employeeId], references: [id])
+
+  @@index([cafeId, createdAt])
+  @@index([cafeId, source])
+  @@index([referenceId])
+  @@map("financial_transactions")
+}
+
+model DeadLetter {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String
+  operation String
+  payload   String
+  error     String
+  attempts  Int      @default(1)
+  status    String   @default("pending_review")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+  severity  String   @default("transient")
+  cafe      Cafe     @relation(fields: [cafeId], references: [id])
+
+  @@index([cafeId, status, createdAt])
+  @@map("dead_letters")
+}
+
+model ProcessedMessage {
+  id             String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String
+  source         String
+  idempotencyKey String
+  entityType     String
+  entityId       String?
+  status         String    @default("completed")
+  requestHash    String?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  completedAt    DateTime? @db.Timestamptz(6)
+  cafe           Cafe      @relation(fields: [cafeId], references: [id])
+
+  @@unique([source, idempotencyKey])
+  @@index([cafeId, createdAt])
+  @@map("processed_messages")
+}
+
+model StockReservation {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String    @map("cafe_id")
+  inventoryId String    @map("inventory_id")
+  orderId     String    @map("order_id")
+  quantity    Decimal   @db.Decimal
+  status      String    @default("ACTIVE")
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  confirmedAt DateTime? @db.Timestamptz(6)
+  releasedAt  DateTime? @db.Timestamptz(6)
+  cafe        Cafe      @relation(fields: [cafeId], references: [id])
+  inventory   Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([inventoryId, status])
+  @@index([cafeId, status, createdAt])
+  @@map("stock_reservations")
+}
+
+model AuditLog {
+  id             String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String   @map("cafe_id")
+  action         String
+  entityType     String?  @map("entity_type")
+  entityId       String?  @map("entity_id")
+  actorId        String?  @map("actor_id")
+  actorRole      String?  @map("actor_role")
+  beforeState    Json?    @map("before_state")
+  afterState     Json?    @map("after_state")
+  metadata       Json?
+  idempotencyKey String?  @unique @map("idempotency_key")
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  cafe           Cafe     @relation(fields: [cafeId], references: [id])
+
+  @@index([cafeId, action])
+  @@index([cafeId, entityType, entityId])
+  @@index([cafeId, actorRole])
+  @@index([actorId])
+  @@index([createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+model StockLedger {
+  id             String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String    @map("cafe_id")
+  inventoryId    String    @map("inventory_id")
+  orderId        String?   @map("order_id")
+  change         Decimal   @db.Decimal
+  balanceBefore  Decimal   @db.Decimal
+  balanceAfter   Decimal   @db.Decimal
+  reservedBefore Decimal   @db.Decimal
+  reservedAfter  Decimal   @db.Decimal
+  reason         String
+  idempotencyKey String?
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  cafe           Cafe      @relation(fields: [cafeId], references: [id])
+  inventory      Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@index([inventoryId, createdAt])
+  @@index([orderId])
+  @@index([idempotencyKey])
+  @@map("stock_ledger")
+}
+
+model TelegramChat {
+  id            String               @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId        String               @map("cafe_id")
+  chatId        BigInt               @map("chat_id")
+  chatType      String               @default("private") @map("chat_type")
+  customerId    String?              @map("customer_id")
+  languageCode  String?              @default("ar") @map("language_code")
+  firstSeenAt   DateTime             @default(now()) @map("first_seen_at") @db.Timestamptz(6)
+  lastMessageAt DateTime             @updatedAt @map("last_message_at")
+  active        Boolean              @default(true)
+  cafe          Cafe                 @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  customer      Customer?            @relation(fields: [customerId], references: [id])
+  sessions      TelegramSession[]
+  messages      TelegramMessageLog[]
+
+  @@unique([cafeId, chatId])
+  @@index([chatId])
+  @@index([cafeId])
+  @@index([customerId])
+  @@map("telegram_chats")
+}
+
+model TelegramSession {
+  id        String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  chatId    BigInt       @map("chat_id")
+  cafeId    String       @map("cafe_id")
+  state     String       @default("idle")
+  context   Json?
+  createdAt DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt DateTime     @map("expires_at")
+  chat      TelegramChat @relation(fields: [chatId, cafeId], references: [chatId, cafeId])
+  cafe      Cafe         @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, cafeId])
+  @@index([chatId])
+  @@index([expiresAt])
+  @@map("telegram_sessions")
+}
+
+model TelegramMessageLog {
+  id           String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId       String       @map("cafe_id")
+  chatId       BigInt       @map("chat_id")
+  messageId    Int          @map("message_id")
+  direction    String
+  text         String?
+  callbackData String?      @map("callback_data")
+  updateType   String       @default("message") @map("update_type")
+  processed    Boolean      @default(false)
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  cafe         Cafe         @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  chat         TelegramChat @relation(fields: [chatId, cafeId], references: [chatId, cafeId])
+
+  @@unique([cafeId, messageId])
+  @@index([chatId])
+  @@index([cafeId])
+  @@index([createdAt])
+  @@map("telegram_message_logs")
+}
+
+model LoyaltyRule {
+  id             String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String   @map("cafe_id")
+  name           String
+  type           String
+  scopeProductIds Json?   @map("scope_product_ids")
+  scopeCategoryIds Json?  @map("scope_category_ids")
+  conditionCount Int      @map("condition_count")
+  conditionMinValue Decimal? @map("condition_min_value") @db.Decimal(10, 2)
+  rewardType     String
+  rewardProductId String? @map("reward_product_id")
+  rewardValue    Decimal? @map("reward_value") @db.Decimal(10, 2)
+  validFrom      DateTime? @map("valid_from") @db.Timestamptz(6)
+  validTo        DateTime? @map("valid_to") @db.Timestamptz(6)
+  maxRedemptions Int?     @map("max_redemptions")
+  currentRedemptions Int  @default(0) @map("current_redemptions")
+  enabled        Boolean  @default(false)
+  requiresOwnerApproval Boolean @default(false) @map("requires_owner_approval")
+  autoCompensation Boolean @default(false) @map("auto_compensation")
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+  loyaltyLedgers LoyaltyLedger[]
+
+  @@index([cafeId, enabled])
+  @@map("loyalty_rules")
+}
+
+model LoyaltyLedger {
+  id             String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String   @map("cafe_id")
+  customerId     String   @map("customer_id")
+  ruleId         String?  @map("rule_id")
+  orderId        String?  @map("order_id")
+  entryType      String
+  points         Int      @default(0)
+  reason         String?
+  createdAt      DateTime @default(now()) @db.Timestamptz(6)
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
+  idempotencyKey String?  @map("idempotency_key")
+  createdBy      String?  @map("created_by")
+  rule           LoyaltyRule? @relation(fields: [ruleId], references: [id])
+
+  @@unique([idempotencyKey])
+  @@index([cafeId, customerId])
+  @@index([customerId])
+  @@index([createdAt])
+  @@map("loyalty_ledger")
+}
+
+model RewardWallet {
+  id             String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String   @map("cafe_id")
+  customerId     String   @unique @map("customer_id")
+  totalEarned    Int      @default(0) @map("total_earned")
+  totalRedeemed  Int      @default(0) @map("total_redeemed")
+  currentBalance Int      @default(0) @map("current_balance")
+  lifetimeEarned Int      @default(0) @map("lifetime_earned")
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([cafeId])
+  @@map("reward_wallets")
+}
+
+model Complaint {
+  id             String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String    @map("cafe_id")
+  customerId     String    @map("customer_id")
+  orderId        String?   @map("order_id")
+  category       String?
+  description    String?
+  status         String    @default("OPEN")
+  resolution     String?
+  compensationId String?   @map("compensation_id")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  resolvedAt     DateTime? @map("resolved_at") @db.Timestamptz(6)
+  compensations  Compensation[]
+
+  @@index([cafeId, customerId])
+  @@index([orderId])
+  @@map("complaints")
+}
+
+model Compensation {
+  id             String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String    @map("cafe_id")
+  customerId     String    @map("customer_id")
+  complaintId    String?   @map("complaint_id")
+  orderId        String?   @map("order_id")
+  type           String
+  productId      String?   @map("product_id")
+  value          Decimal?  @db.Decimal(10, 2)
+  status         String    @default("PENDING")
+  ownerApproved  Boolean   @default(false) @map("owner_approved")
+  idempotencyKey String?   @map("idempotency_key")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  appliedAt      DateTime? @map("applied_at") @db.Timestamptz(6)
+  complaint      Complaint? @relation(fields: [complaintId], references: [id])
+
+  @@index([cafeId, customerId])
+  @@index([idempotencyKey])
+  @@map("compensations")
+}
+
+model CustomerFeedback {
+  id             String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String    @map("cafe_id")
+  customerId     String    @map("customer_id")
+  orderId        String?   @map("order_id")
+  rating         Int?
+  category       String?
+  comment        String?
+  isComplaint    Boolean   @default(false) @map("is_complaint")
+  complaintId    String?   @map("complaint_id")
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([cafeId, customerId])
+  @@index([orderId])
+  @@map("customer_feedback")
+}
+
+model NotificationPreference {
+  id                  String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId              String   @map("cafe_id")
+  customerId          String   @unique @map("customer_id")
+  orderStatus         Boolean  @default(true) @map("order_status")
+  loyaltyProgress     Boolean  @default(true) @map("loyalty_progress")
+  rewardExpiry        Boolean  @default(true) @map("reward_expiry")
+  personalOffers      Boolean  @default(true) @map("personal_offers")
+  productAvailability Boolean  @default(true) @map("product_availability")
+  reengagement        Boolean  @default(true)
+  postOrderFeedback   Boolean  @default(true) @map("post_order_feedback")
+  quietHourStart      Int?     @default(22) @map("quiet_hour_start")
+  quietHourEnd        Int?     @default(8)  @map("quiet_hour_end")
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("notification_preferences")
+}
+
+model CustomerTier {
+  id             String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId         String   @map("cafe_id")
+  customerId     String   @unique @map("customer_id")
+  tier           String   @default("STANDARD")
+  totalOrdersAtTier Int  @default(0) @map("total_orders_at_tier")
+  enteredAt      DateTime @default(now()) @map("entered_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([cafeId, tier])
+  @@map("customer_tiers")
+}
+
+// ── Stage 11: Continuous Learning ──
+
+model LearningEvent {
+  id                  String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId              String    @map("cafe_id")
+  customerId          String?   @map("customer_id")
+  sessionId           String?   @map("session_id")
+  channel             String    @default("TELEGRAM")
+  eventType           String    @map("event_type")
+  severity            String    @default("MEDIUM")
+  primaryCategory     String    @map("primary_category")
+  secondaryCategories String[]  @map("secondary_categories")
+  messageReference    String?   @map("message_reference")
+  stateBefore         Json?     @map("state_before")
+  expectedBehavior    Json?     @map("expected_behavior")
+  actualBehavior      Json?     @map("actual_behavior")
+  customerCorrection  String?   @map("customer_correction")
+  correctedIntent     String?   @map("corrected_intent")
+  correctedEntities   Json?     @map("corrected_entities")
+  humanResolution     String?   @map("human_resolution")
+  humanChanges        Json?     @map("human_changes")
+  orderCompleted      Boolean?  @map("order_completed")
+  promptVersion       String?   @map("prompt_version")
+  modelVersion        String?   @map("model_version")
+  toolVersions        Json?     @map("tool_versions")
+  rootCause           String?   @map("root_cause")
+  shouldBecomeCase    Boolean   @default(false) @map("should_become_case")
+  evaluationCaseId    String?   @map("evaluation_case_id")
+  acknowledged        Boolean   @default(false)
+  acknowledgedBy      String?   @map("acknowledged_by")
+  acknowledgedAt      DateTime? @map("acknowledged_at") @db.Timestamptz(6)
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([cafeId, eventType])
+  @@index([cafeId, createdAt])
+  @@index([cafeId, primaryCategory])
+  @@index([cafeId, severity])
+  @@map("learning_events")
+}
+
+model EvaluationCase {
+  id                 String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  caseId             String   @unique @map("case_id")
+  cafeId             String   @map("cafe_id")
+  source             String   @default("MANUAL")
+  dataset            String   @default("CUSTOMER_ORDERING")
+  version            String   @default("v1")
+  input              String   @map("input_text")
+  stateBefore        Json?    @map("state_before")
+  expectedIntent     String?  @map("expected_intent")
+  expectedEntities   Json?    @map("expected_entities")
+  expectedAction     String?  @map("expected_action")
+  expectedState      String?  @map("expected_state")
+  forbiddenActions   String[] @map("forbidden_actions")
+  forbiddenStates    String[] @map("forbidden_states")
+  privacyStatus      String   @default("RAW") @map("privacy_status")
+  approved           Boolean  @default(false)
+  approvedBy         String?  @map("approved_by")
+  approvedAt         DateTime? @map("approved_at") @db.Timestamptz(6)
+  disabled           Boolean  @default(false)
+  disableReason      String?  @map("disable_reason")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([cafeId, dataset])
+  @@index([caseId])
+  @@index([dataset, version])
+  @@map("evaluation_cases")
+}
+
+model PromptVersion {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  promptId        String   @map("prompt_id")
+  version         String   @map("version_label")
+  purpose         String
+  owner           String
+  content         String
+  previousContent String?  @map("previous_content")
+  changeReason    String?  @map("change_reason")
+  linkedCases     String[] @map("linked_cases")
+  expectedImpact  String?  @map("expected_impact")
+  risk            String   @default("LOW")
+  status          String   @default("DRAFT")
+  evaluationResult Json?   @map("evaluation_result")
+  baselineResult  Json?    @map("baseline_result")
+  deploymentScope String?  @map("deployment_scope")
+  rollbackVersion String?  @map("rollback_version")
+  authorId        String?  @map("author_id")
+  reviewerId      String?  @map("reviewer_id")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(6)
+  deployedAt      DateTime? @map("deployed_at") @db.Timestamptz(6)
+
+  @@index([promptId, version])
+  @@index([status])
+  @@map("prompt_versions")
+}
+
+model RuleVersion {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  ruleId          String   @map("rule_id")
+  version         String   @map("version_label")
+  name            String
+  ruleType        String   @map("rule_type")
+  oldBehavior     Json?    @map("old_behavior")
+  newBehavior     Json     @map("new_behavior")
+  reason          String?  @map("change_reason")
+  tests           String[] @map("linked_tests")
+  impact          String?  @map("expected_impact")
+  rollbackPlan    String?  @map("rollback_plan")
+  status          String   @default("DRAFT")
+  authorId        String?  @map("author_id")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([ruleId, version])
+  @@map("rule_versions")
+}
+
+model ModelVersion {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  provider        String
+  model           String
+  modelVersion    String   @map("model_version")
+  temperature     Float    @default(0.2)
+  responseSchema  String?  @map("response_schema")
+  toolSchema      Json?    @map("tool_schema")
+  timeout         Int      @default(30000)
+  retryPolicy     Json?    @map("retry_policy")
+  tokenLimits     Json?    @map("token_limits")
+  releaseDate     DateTime? @map("release_date") @db.Timestamptz(6)
+  evaluationResult Json?   @map("evaluation_result")
+  purpose         String   @default("GENERAL")
+  status          String   @default("DRAFT")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([provider, model, modelVersion])
+  @@map("model_versions")
+}
+
+model FeatureFlag {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  flagKey         String   @map("flag_key")
+  cafeId          String?  @map("cafe_id")
+  environment     String   @default("production")
+  enabled         Boolean  @default(false)
+  rolloutPercent  Int      @default(0) @map("rollout_percent")
+  metadata        Json?    @map("flag_metadata")
+  createdBy       String?  @map("created_by")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([flagKey, cafeId, environment])
+  @@index([flagKey, environment])
+  @@map("feature_flags")
+}
+
+model CanaryRelease {
+  id              String      @id @default(dbgenerated("(gen_random_uuid())::text"))
+  releaseId       String      @unique @map("release_id")
+  changeType      String      @map("change_type")
+  changeId        String      @map("change_id")
+  rolloutPercent  Int         @default(1) @map("rollout_percent")
+  controlGroup    Json?       @map("control_group")
+  canaryGroup     Json?       @map("canary_group")
+  metrics         Json?       @map("metrics_snapshot")
+  status          String      @default("ACTIVE")
+  triggeredBy     String?     @map("triggered_by")
+  rollbackReason  String?     @map("rollback_reason")
+  rolledBackAt    DateTime?   @map("rolled_back_at") @db.Timestamptz(6)
+  completedAt     DateTime?   @map("completed_at") @db.Timestamptz(6)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([releaseId])
+  @@index([status])
+  @@map("canary_releases")
+}
+
+model ChangeAudit {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  changeId        String   @unique @map("change_id")
+  authorId        String?  @map("author_id")
+  reviewerId      String?  @map("reviewer_id")
+  changeType      String   @map("change_type")
+  changeTarget    String   @map("change_target")
+  reason          String?  @map("change_reason")
+  linkedFailureEvents String[] @map("linked_failure_events")
+  linkedCases     String[] @map("linked_cases")
+  baselineResult  Json?    @map("baseline_result")
+  candidateResult Json?    @map("candidate_result")
+  approval        String?  @map("approval_decision")
+  rolloutPercent  Int?     @map("rollout_percent")
+  productionResult Json?   @map("production_result")
+  rollbackReason  String?  @map("rollback_reason")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([changeType, createdAt])
+  @@map("change_audits")
+}
+
+model ReviewQueueItem {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String   @map("cafe_id")
+  title           String
+  description     String?
+  category        String   @default("UNKNOWN")
+  severity        String   @default("MEDIUM")
+  sourceEventId   String?  @map("source_event_id")
+  safeExcerpt     String?  @map("safe_excerpt")
+  aiDecision      Json?    @map("ai_decision")
+  actualOutcome   Json?    @map("actual_outcome")
+  customerCorrection String? @map("customer_correction")
+  promptVersion   String?  @map("prompt_version")
+  modelVersion    String?  @map("model_version")
+  privacyStatus   String   @default("REDACTED") @map("privacy_status")
+  status          String   @default("OPEN")
+  assignedOwner   String?  @map("assigned_owner")
+  linkedFixId     String?  @map("linked_fix_id")
+  resolution      String?  @map("resolution_notes")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  resolvedAt      DateTime? @map("resolved_at") @db.Timestamptz(6)
+
+  @@index([cafeId, status])
+  @@index([category, status])
+  @@index([severity])
+  @@map("review_queue_items")
+}
+
+model EgyptianArabicCorpus {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  phrase          String
+  context         String?
+  interpretation  String
+  aiInterpretation String? @map("ai_interpretation")
+  humanCorrection  String? @map("human_correction")
+  frequency       Int      @default(1)
+  confidence      Float    @default(0.0)
+  category        String   @default("UNKNOWN")
+  variantOf       String?  @map("variant_of")
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([phrase])
+  @@index([frequency])
+  @@index([category])
+  @@map("egyptian_arabic_corpus")
+}
+
+model DriftEvent {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String   @map("cafe_id")
+  metricName      String   @map("metric_name")
+  metricValue     Float    @map("metric_value")
+  baselineValue   Float?   @map("baseline_value")
+  deviation       Float    @map("deviation_percent")
+  severity        String   @default("LOW")
+  source          String   @default("AUTO")
+  acknowledged    Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([cafeId, metricName])
+  @@index([cafeId, severity])
+  @@index([createdAt])
+  @@map("drift_events")
+}
+
+// ── Unified Order Foundation (PR #1) ──
+// New unified models alongside existing Order + InCafeOrder.
+// No business logic migration yet — schema foundation only.
+
+model UnifiedOrder {
+  id                    String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                String    @map("cafe_id")
+  branchId              String    @map("branch_id")
+  code                  String    @unique
+
+  // ── Channel & Source (independent axes) ──
+  channel               String    @default("IN_CAFE")
+  source                String    @default("POS_TERMINAL")
+
+  // ── Fulfillment lifecycle ──
+  status                String    @default("NEW")
+  cancelStatus          String?
+
+  // ── Payment (independent axis) ──
+  paymentStatus         String    @default("UNPAID")
+  subtotal              Decimal   @default(0) @db.Decimal(10, 2)
+  discountTotal         Decimal   @default(0) @db.Decimal(10, 2)
+  grandTotal            Decimal   @default(0) @db.Decimal(10, 2)
+  amountPaid            Decimal   @default(0) @db.Decimal(10, 2)
+  changeTotal           Decimal   @default(0) @db.Decimal(10, 2)
+  remainingAmount       Decimal   @default(0) @db.Decimal(10, 2)
+  profit                Decimal?  @db.Decimal(10, 2)
+
+  // ── Customer ──
+  customerId            String?
+  customerName          String?
+  customerPhone         String?
+
+  // ── Staff ──
+  createdById           String?   @map("created_by_id")
+  collectedById         String?   @map("collected_by_id")
+  collectedRole         String?
+  employeeId            String?   @map("employee_id")
+
+  // ── Driver (DELIVERY channel only) ──
+  driverId              String?
+
+  // ── Delivery specifics ──
+  address               String?
+
+  // ── In-cafe specifics ──
+  orderType             String    @default("DINE_IN")
+  tableNumber           String?
+  sourceType            String    @default("INSIDE_CAFE")
+
+  // ── Priority / flags ──
+  priority              String    @default("NORMAL")
+  notes                 String?
+  voidReason            String?
+
+  // ── Inventory state ──
+  stockDeducted         Boolean   @default(false)
+  isRevenueConfirmed    Boolean   @default(false)
+
+  // ── Legacy traceability ──
+  legacyId              String?   @map("legacy_id")
+  legacyTable           String?   @map("legacy_table")
+
+  // ── Idempotency ──
+  externalId            String?
+  idempotencyKey        String?   @unique
+
+  // ── Optimistic lock ──
+  version               Int       @default(1)
+
+  // ── Timestamps ──
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6)
+  confirmedAt           DateTime? @db.Timestamptz(6)
+  preparedAt            DateTime? @db.Timestamptz(6)
+  readyAt               DateTime? @db.Timestamptz(6)
+  pickedUpAt            DateTime? @db.Timestamptz(6)
+  deliveredAt           DateTime? @db.Timestamptz(6)
+  paidAt                DateTime? @db.Timestamptz(6)
+  closedAt              DateTime? @db.Timestamptz(6)
+  cancelledAt           DateTime? @db.Timestamptz(6)
+  voidedAt              DateTime? @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6)
+
+  // ── Relations ──
+  items                 UnifiedOrderItem[]
+  statusHistory         UnifiedOrderStatusHistory[]
+  refunds               UnifiedRefund[]
+  branch                Branch    @relation(fields: [branchId], references: [id])
+  cafe                  Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  customer              Customer? @relation("UnifiedCustomerOrders", fields: [customerId], references: [id])
+  createdBy             Staff?    @relation("UnifiedOrderCreatedBy", fields: [createdById], references: [id])
+  collectedBy           Staff?    @relation("UnifiedOrderCollectedBy", fields: [collectedById], references: [id])
+  employee              Staff?    @relation("UnifiedOrderBroughtBy", fields: [employeeId], references: [id])
+  driver                Driver?   @relation(fields: [driverId], references: [id])
+  merchantOrders        MerchantOrder[]
+
+  @@unique([cafeId, code])
+  @@unique([cafeId, externalId])
+  @@index([cafeId, branchId])
+  @@index([cafeId, branchId, status])
+  @@index([cafeId, branchId, createdAt])
+  @@index([cafeId, channel])
+  @@index([cafeId, channel, status])
+  @@index([cafeId, source])
+  @@index([cafeId, paymentStatus])
+  @@index([cafeId, driverId])
+  @@index([cafeId, employeeId])
+  @@index([customerId])
+  @@index([status, cancelStatus])
+  @@map("unified_orders")
+}
+
+model UnifiedOrderItem {
+  id                  String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId              String    @map("cafe_id")
+  branchId            String    @map("branch_id")
+  orderId             String    @map("order_id")
+  productId           String    @map("product_id")
+  quantity            Int
+  unitPrice           Decimal   @db.Decimal(10, 2)
+  discountAmount      Decimal   @default(0) @db.Decimal(10, 2)
+  notes               String?
+
+  // ── KDS / preparation tracking ──
+  preparationStatus   String    @default("PENDING")
+  stationId           String?
+  startedAt           DateTime? @db.Timestamptz(6)
+  completedAt         DateTime? @db.Timestamptz(6)
+
+  order               UnifiedOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product             Product      @relation(fields: [productId], references: [id])
+  branch              Branch       @relation(fields: [branchId], references: [id])
+  cafe                Cafe         @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([productId])
+  @@index([stationId, preparationStatus])
+  @@map("unified_order_items")
+}
+
+model UnifiedOrderStatusHistory {
+  id          String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId      String    @map("cafe_id")
+  orderId     String    @map("order_id")
+  fromStatus  String    @map("from_status")
+  toStatus    String    @map("to_status")
+  changedBy   String?   @map("changed_by")
+  changeType  String    @default("STATUS")
+  reason      String?
+  createdAt   DateTime  @default(now()) @db.Timestamptz(6)
+  order       UnifiedOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  cafe        Cafe         @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@index([cafeId, createdAt])
+  @@map("unified_order_status_histories")
+}
+
+model UnifiedRefund {
+  id               String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId           String    @map("cafe_id")
+  orderId          String    @map("order_id")
+  amount           Decimal   @db.Decimal(10, 2)
+  reason           String
+  itemIds          Json?
+  paymentsRefunded Json?
+  processedById    String?   @map("processed_by_id")
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6)
+  order            UnifiedOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  cafe             Cafe         @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  processedBy      Staff?       @relation(fields: [processedById], references: [id])
+
+  @@index([orderId])
+  @@index([cafeId, createdAt])
+  @@map("unified_refunds")
+}
+
+model OnboardingSession {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String   @map("cafe_id")
+  currentStep     Int      @default(0)
+  status          String   @default("IN_PROGRESS") // PENDING | IN_PROGRESS | COMPLETED | ABANDONED
+  stepData        Json     @default("{}")
+  completedSteps  Json     @default("[]")
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+  cafe            Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@unique([cafeId])
+  @@index([cafeId, status])
+  @@map("onboarding_sessions")
+}
+
+model Tax {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String   @map("cafe_id")
+  name      String
+  rate      Decimal  @db.Decimal(5, 2)
+  type      String   @default("PERCENTAGE") // PERCENTAGE | FLAT
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId])
+  @@map("taxes")
+}
+
+model PaymentMethod {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String   @map("cafe_id")
+  name      String
+  type      String   @default("CASH") // CASH | CARD | ONLINE | OTHER
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId])
+  @@map("payment_methods")
+}
+
+model Supplier {
+  id        String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId    String   @map("cafe_id")
+  name      String
+  phone     String?
+  email     String?
+  address   String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  cafe      Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId])
+  @@map("suppliers")
+}
+
+model CustomerOrder {
+  id              String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  customerId      String?   @map("customer_id")
+  customerName    String?
+  customerPhone   String?
+  address         String?
+  deliveryMethod  String    @default("DELIVERY") @map("delivery_method")
+
+  status          String    @default("CREATED")
+
+  subtotal        Decimal   @default(0) @db.Decimal(10, 2)
+  deliveryFee     Decimal   @default(0) @db.Decimal(10, 2)
+  grandTotal      Decimal   @default(0) @db.Decimal(10, 2)
+
+  driverId        String?   @map("driver_id")
+
+  readyMerchantCount Int    @default(0) @map("ready_merchant_count")
+  totalMerchantCount  Int   @default(0) @map("total_merchant_count")
+
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(6)
+  completedAt     DateTime? @db.Timestamptz(6) @map("completed_at")
+  cancelledAt     DateTime? @db.Timestamptz(6) @map("cancelled_at")
+
+  merchantOrders  MerchantOrder[]
+  driver          Driver?   @relation(fields: [driverId], references: [id])
+
+  @@index([customerId])
+  @@index([status])
+  @@index([driverId])
+  @@map("customer_orders")
+}
+
+model MerchantOrder {
+  id                      String              @id @default(dbgenerated("(gen_random_uuid())::text"))
+  customerOrderId         String              @map("customer_order_id")
+  cafeId                  String              @map("cafe_id")
+  unifiedOrderId          String?             @map("unified_order_id")
+  businessName            String?
+  businessType            String              @default("general") @map("business_type")
+
+  status                  String              @default("CREATED")
+  cancellationReason      String?             @map("cancellation_reason")
+
+  preparationTimeMinutes  Int                 @default(15) @map("preparation_time_minutes")
+  estimatedReadyAt        DateTime?           @db.Timestamptz(6) @map("estimated_ready_at")
+  acceptedAt              DateTime?           @db.Timestamptz(6) @map("accepted_at")
+  startedAt               DateTime?           @db.Timestamptz(6) @map("started_at")
+  readyAt                 DateTime?           @db.Timestamptz(6) @map("ready_at")
+  pickedUpAt              DateTime?           @db.Timestamptz(6) @map("picked_up_at")
+  completedAt             DateTime?           @db.Timestamptz(6) @map("completed_at")
+  cancelledAt             DateTime?           @db.Timestamptz(6) @map("cancelled_at")
+
+  pickupSequence          Int                 @default(0) @map("pickup_sequence")
+
+  createdAt               DateTime            @default(now()) @db.Timestamptz(6)
+  updatedAt               DateTime            @updatedAt @db.Timestamptz(6)
+
+  customerOrder           CustomerOrder       @relation(fields: [customerOrderId], references: [id], onDelete: Cascade)
+  cafe                    Cafe                @relation(fields: [cafeId], references: [id])
+  unifiedOrder            UnifiedOrder?       @relation(fields: [unifiedOrderId], references: [id])
+  items                   MerchantOrderItem[]
+  driverAssignments       DriverAssignment[]
+
+  @@index([customerOrderId])
+  @@index([cafeId])
+  @@index([status])
+  @@map("merchant_orders")
+}
+
+model MerchantOrderItem {
+  id              String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  merchantOrderId String         @map("merchant_order_id")
+  productName     String         @map("product_name")
+  quantity        Int
+  unitPrice       Decimal        @db.Decimal(10, 2) @map("unit_price")
+  totalPrice      Decimal        @db.Decimal(10, 2) @map("total_price")
+  notes           String?
+
+  merchantOrder   MerchantOrder  @relation(fields: [merchantOrderId], references: [id], onDelete: Cascade)
+
+  @@index([merchantOrderId])
+  @@map("merchant_order_items")
+}
+
+model DriverAssignment {
+  id              String          @id @default(dbgenerated("(gen_random_uuid())::text"))
+  driverId        String          @map("driver_id")
+  merchantOrderId String          @map("merchant_order_id")
+  status          String          @default("PENDING")
+  score           Decimal?        @db.Decimal(10, 2)
+  assignedAt      DateTime        @default(now()) @db.Timestamptz(6)
+  respondedAt     DateTime?       @db.Timestamptz(6) @map("responded_at")
+  expiresAt       DateTime?       @db.Timestamptz(6) @map("expires_at")
+
+  driver          Driver          @relation(fields: [driverId], references: [id], onDelete: Cascade)
+  merchantOrder   MerchantOrder   @relation(fields: [merchantOrderId], references: [id], onDelete: Cascade)
+
+  @@index([driverId, status])
+  @@index([merchantOrderId])
+  @@index([status])
+  @@map("driver_assignments")
+}
+
+model MerchantMessage {
+  id              String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  merchantId      String    @map("merchant_id")
+  merchantOrderId String    @map("merchant_order_id")
+  customerOrderId String    @map("customer_order_id")
+  messageType     String    @map("message_type")
+  responseType    String?   @map("response_type")
+  payload         Json      @default("{}")
+  metadata        Json      @default("{}")
+  version         Int       @default(1)
+  status          String    @default("PENDING")
+  errorCode       String?   @map("error_code")
+  createdAt       DateTime  @default(now()) @db.Timestamptz(6)
+  processedAt     DateTime? @db.Timestamptz(6) @map("processed_at")
+
+  @@index([merchantId, merchantOrderId])
+  @@index([merchantOrderId])
+  @@index([messageType, status])
+  @@map("merchant_messages")
+}
+
+model MerchantAvailability {
+  id                      String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                  String    @unique @map("cafe_id")
+  status                  String    @default("OPEN")
+  queueLength             Int       @default(0) @map("queue_length")
+  currentETA              Int       @default(0) @map("current_eta")
+  averagePreparationTime  Int       @default(15) @map("average_preparation_time")
+  maxQueue                Int       @default(10) @map("max_queue")
+  maxConcurrentOrders     Int       @default(5) @map("max_concurrent_orders")
+  activeOrderCount        Int       @default(0) @map("active_order_count")
+  updatedAt               DateTime  @updatedAt @db.Timestamptz(6)
+
+  cafe                    Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@map("merchant_availability")
+}
+
+model MerchantReview {
+  id              String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  customerId      String   @map("customer_id")
+  merchantId      String   @map("merchant_id")
+  merchantOrderId String   @unique @map("merchant_order_id")
+  ratings         Json     @default("{}")
+  comment         String?
+  verified        Boolean  @default(true)
+  createdAt       DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([merchantId])
+  @@index([customerId])
+  @@index([merchantId, createdAt])
+  @@map("merchant_reviews")
+}
+
+model MerchantReputation {
+  id                String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  merchantId        String   @unique @map("merchant_id")
+  trustScore        Decimal  @default(0) @db.Decimal(5, 2)
+  totalReviews      Int      @default(0)
+  averageRating     Decimal  @default(0) @db.Decimal(3, 2)
+  complaintCount    Int      @default(0)
+  successRate       Decimal  @default(0) @db.Decimal(5, 2)
+  cancellationRate  Decimal  @default(0) @db.Decimal(5, 2)
+  badges            Json     @default("[]")
+  alerts            Json     @default("[]")
+  lastCalculated    DateTime @default(now()) @db.Timestamptz(6) @map("last_calculated")
+  updatedAt         DateTime @updatedAt @db.Timestamptz(6)
+
+  @@map("merchant_reputations")
+}
+
+enum DynamicPricingRuleType {
+  FIXED_DISCOUNT
+  PERCENTAGE_DISCOUNT
+  PRICE_OVERRIDE
+  CATEGORY_DISCOUNT
+  TIME_WINDOW
+  DAY_OF_WEEK
+  MINIMUM_QUANTITY
+}
+
+model DynamicPricingRule {
+  id                 String                @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId             String                @map("cafe_id")
+  name               String
+  ruleType           DynamicPricingRuleType @map("rule_type")
+  enabled            Boolean               @default(true)
+  priority           Int                   @default(0)
+  value              Decimal               @db.Decimal(10, 2)
+  currency           String                @default("SAR")
+  conditions         Json                  @default("{}")
+  productIds         Json?                 @map("product_ids")
+  categoryIds        Json?                 @map("category_ids")
+  validFrom          DateTime?             @db.Timestamptz(6) @map("valid_from")
+  validTo            DateTime?             @db.Timestamptz(6) @map("valid_to")
+  maxRedemptions     Int?                  @map("max_redemptions")
+  currentRedemptions Int                   @default(0) @map("current_redemptions")
+  createdAt          DateTime              @default(now()) @db.Timestamptz(6)
+  updatedAt          DateTime              @updatedAt @db.Timestamptz(6)
+  cafe               Cafe                  @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId])
+  @@index([cafeId, enabled])
+  @@index([cafeId, ruleType])
+  @@index([cafeId, priority])
+  @@map("dynamic_pricing_rules")
+}

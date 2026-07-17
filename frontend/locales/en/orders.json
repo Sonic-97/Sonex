@@ -1,0 +1,30 @@
+{
+  "title": "Orders",
+  "status": {
+    "NEW": "New",
+    "CONFIRMED": "Confirmed",
+    "READY": "Ready",
+    "PICKED_UP": "Picked Up",
+    "DELIVERED": "Delivered",
+    "PAID": "Paid",
+    "CLOSED": "Closed",
+    "CANCELLED": "Cancelled"
+  },
+  "paymentStatus": {
+    "UNPAID": "Unpaid",
+    "PAID": "Paid",
+    "PARTIAL_PAYMENT": "Partial Payment"
+  },
+  "columns": {
+    "code": "Order #",
+    "customer": "Customer",
+    "status": "Status",
+    "total": "Total",
+    "payment": "Payment",
+    "driver": "Driver",
+    "createdAt": "Created At",
+    "actions": "Actions"
+  },
+  "noOrders": "No orders found",
+  "liveFeed": "Live Orders"
+}

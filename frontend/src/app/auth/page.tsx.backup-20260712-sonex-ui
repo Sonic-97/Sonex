@@ -1,0 +1,177 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Coffee, ArrowRight, AlertCircle, User, Lock, KeyRound, ArrowLeft } from 'lucide-react';
+import api from '@/lib/api';
+
+export default function AuthPage() {
+  const router = useRouter();
+  const [cafeCode, setCafeCode] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    // Attempt to pre-fill the cafe code from session storage if the user just registered
+    const storedCode = sessionStorage.getItem('sonic_cafe_code');
+    if (storedCode) {
+      setCafeCode(storedCode);
+    }
+  }, []);
+
+  const handleLogin = async () => {
+    if (!cafeCode.trim() || !username.trim() || !password.trim()) {
+      setError('يرجى ملء جميع الحقول المطلوبة');
+      return;
+    }
+    
+    setLoading(true);
+    setError('');
+    
+    try {
+      const payload = {
+        cafeCode: cafeCode.trim(),
+        username: username.trim(),
+        password: password.trim(),
+      };
+      
+      const { data } = await api.post('/auth/login-tenant', payload, { withCredentials: true });
+      
+      if (data.accessToken) {
+        sessionStorage.setItem('sonic_token', data.accessToken);
+      }
+      
+      sessionStorage.setItem('sonic_cafe_id', data.cafeId);
+      sessionStorage.setItem('sonic_cafe_name', data.cafeName);
+      sessionStorage.setItem('sonic_cafe_code', data.cafeCode || cafeCode.trim());
+      
+      sessionStorage.setItem('sonic_user', JSON.stringify({
+        employeeId: data.userId || '',
+        name: data.name || '',
+        role: (data.role || '').toUpperCase(),
+        phone: data.phone || '',
+      }));
+      
+      const role = (data.role || '').toUpperCase();
+      const path = role === 'BARISTA' ? '/barista' : role === 'DRIVER' ? '/driver' : '/owner';
+      window.location.href = path;
+    } catch (err: any) {
+      const apiMsg = err.response?.data?.message;
+      setError(apiMsg || 'خطأ في تسجيل الدخول. يرجى التحقق من الكود واسم المستخدم وكلمة المرور');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-slate-950 p-4 font-sans text-slate-100" dir="rtl">
+      {/* Decorative gradient blur background */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-amber-500/5 rounded-full blur-[80px] pointer-events-none"></div>
+
+      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl relative z-10">
+        
+        {/* Logo / Header */}
+        <div className="text-center mb-8">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 text-slate-950 font-bold shadow-lg shadow-amber-500/10">
+            <Coffee className="h-7 w-7" />
+          </div>
+          <h1 className="text-2xl font-extrabold text-white">تسجيل الدخول</h1>
+          <p className="text-sm text-slate-400 mt-2">يرجى إدخال بيانات حساب الكافيه الخاص بك</p>
+        </div>
+
+        {/* Login Form */}
+        <form onSubmit={(e) => { e.preventDefault(); handleLogin(); }} className="space-y-5">
+          
+          {/* Cafe Code Field */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-slate-400">رمز الكافيه (Cafe Code)</label>
+            <div className="relative">
+              <KeyRound className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                type="text"
+                required
+                value={cafeCode}
+                onChange={(e) => setCafeCode(e.target.value)}
+                placeholder="مثال: COF-12345"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pr-10 pl-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all text-left font-mono tracking-wider"
+                dir="ltr"
+              />
+            </div>
+          </div>
+
+          {/* Username / Phone / Email Field */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-slate-400">اسم المستخدم أو البريد الإلكتروني أو الهاتف</label>
+            <div className="relative">
+              <User className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                type="text"
+                required
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="أدخل بريدك الإلكتروني أو هاتفك"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pr-10 pl-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all text-left"
+                dir="ltr"
+              />
+            </div>
+          </div>
+
+          {/* Password Field */}
+          <div className="space-y-2">
+            <label className="block text-xs font-medium text-slate-400">كلمة المرور</label>
+            <div className="relative">
+              <Lock className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-slate-950/50 border border-slate-800 rounded-xl pr-10 pl-4 py-3 text-sm text-slate-100 placeholder-slate-600 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none transition-all text-left"
+                dir="ltr"
+              />
+            </div>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="flex items-center gap-2 rounded-xl bg-red-950/40 border border-red-900/60 p-3 text-xs text-red-400 font-medium">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-3.5 text-sm font-bold text-slate-950 transition-all active:scale-[0.98] disabled:opacity-75 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <span>جاري تسجيل الدخول...</span>
+            ) : (
+              <>
+                <span>تسجيل الدخول</span>
+                <ArrowLeft className="h-4 w-4" />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Footer actions */}
+        <div className="mt-8 flex items-center justify-between text-xs text-slate-500 border-t border-slate-800/60 pt-5">
+          <a href="/register" className="text-amber-400 hover:text-amber-300 font-semibold transition-colors">
+            إنشاء كافيه جديد
+          </a>
+          <a href="/landing" className="hover:text-slate-300 transition-colors flex items-center gap-1">
+            <span>العودة للرئيسية</span>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  );
+}

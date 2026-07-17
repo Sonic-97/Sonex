@@ -1,0 +1,221 @@
+{
+  "version": 1,
+  "description": "Order modification — cancelling before/after preparation, concurrency conflict resolution",
+  "targets": ["backend", "desktop"],
+  "scenarios": [
+    {
+      "id": "order-mod-001",
+      "description": "Modify order items before preparation (NEW status) is allowed",
+      "function": "modifyOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "originalItems": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 2, "unitPrice": 25.0 }
+        ],
+        "modifications": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 },
+          { "productId": "prod-latte", "productName": "Latte", "quantity": 1, "unitPrice": 30.0 }
+        ],
+        "role": "BARISTA",
+        "orderType": "IN_CAFE",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newTotal": 55.0,
+        "oldTotal": 50.0,
+        "status": "NEW",
+        "sideEffects": ["price.recalculated", "inventory.reservation.updated"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-001"]
+    },
+    {
+      "id": "order-mod-002",
+      "description": "Modify order after preparation (PREPARING or later) is rejected",
+      "function": "modifyOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PREPARING",
+        "originalItems": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 }
+        ],
+        "modifications": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 2, "unitPrice": 25.0 }
+        ],
+        "role": "BARISTA",
+        "orderType": "IN_CAFE",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Cannot modify order after preparation has started"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-001"]
+    },
+    {
+      "id": "order-mod-003",
+      "description": "Optimistic concurrency: version mismatch prevents stale update",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "CONFIRMED",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "expectedVersion": 1,
+        "actualVersion": 2
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Concurrent modification detected. Retry recommended.",
+        "conflictResolution": "retry"
+      },
+      "type": "object",
+      "tags": ["regression", "ord-002"]
+    },
+    {
+      "id": "order-mod-004",
+      "description": "Three-retry optimistic lock succeeds on third attempt",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "CONFIRMED",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "expectedVersion": 1,
+        "retryScenario": true,
+        "retriesUntilSuccess": 3
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CONFIRMED",
+        "retryCount": 3
+      },
+      "type": "object",
+      "tags": ["edge-case", "ord-002", "inv-003"]
+    },
+    {
+      "id": "order-mod-005",
+      "description": "Three-retry optimistic lock exhausted: failure after 3 attempts",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "CONFIRMED",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "expectedVersion": 1,
+        "retryScenario": true,
+        "retriesUntilSuccess": null,
+        "maxRetries": 3
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Concurrent modification after maximum retries",
+        "retryCount": 3
+      },
+      "type": "object",
+      "tags": ["edge-case", "ord-002", "inv-003"]
+    },
+    {
+      "id": "order-mod-006",
+      "description": "Modify customer attribution (employeeId) is always allowed regardless of status",
+      "function": "modifyOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "READY",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "newAttributedTo": "staff-sara",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "attributedTo": "staff-sara"
+      },
+      "type": "object",
+      "tags": ["ord-001", "emp-006"]
+    },
+    {
+      "id": "order-mod-007",
+      "description": "Event emission: order.status.changed on every transition",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "CONFIRMED",
+        "role": "BARISTA",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "eventsEmitted": ["order.status.changed", "order.updated"],
+        "newStatus": "CONFIRMED"
+      },
+      "type": "object",
+      "tags": ["events", "ord-002", "not-001"]
+    },
+    {
+      "id": "order-mod-008",
+      "description": "Event emission: order.ready emitted on READY transition",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PREPARING",
+        "targetStatus": "READY",
+        "role": "BARISTA",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "eventsEmitted": ["order.status.changed", "order.ready"],
+        "newStatus": "READY"
+      },
+      "type": "object",
+      "tags": ["events", "ord-002", "not-001"]
+    },
+    {
+      "id": "order-mod-009",
+      "description": "Event emission: order.delivered emitted on DELIVERED transition",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PICKED_UP",
+        "targetStatus": "DELIVERED",
+        "role": "DRIVER",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "eventsEmitted": ["order.status.changed", "order.delivered"],
+        "newStatus": "DELIVERED"
+      },
+      "type": "object",
+      "tags": ["events", "ord-002"]
+    },
+    {
+      "id": "order-mod-010",
+      "description": "Event emission: order.cancelled emitted on CANCELLED transition",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "eventsEmitted": ["order.cancelled"],
+        "newStatus": "CANCELLED"
+      },
+      "type": "object",
+      "tags": ["events", "ord-004"]
+    }
+  ]
+}

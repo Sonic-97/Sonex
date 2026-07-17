@@ -1,0 +1,34 @@
+{
+  "name": "sonex-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "lint": "next lint",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "next": "^16.2.9",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "lucide-react": "^0.501.0",
+    "zustand": "^5.0.0",
+    "clsx": "^2.1.0",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/plugin-updater": "^2.0.0",
+    "@tauri-apps/plugin-shell": "^2.0.0",
+    "@tauri-apps/plugin-dialog": "^2.0.0",
+    "@tauri-apps/plugin-fs": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.8.0",
+    "@tauri-apps/cli": "^2.0.0",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0"
+  }
+}

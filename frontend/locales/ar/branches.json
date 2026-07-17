@@ -1,0 +1,9 @@
+{
+  "selectBranch": "اختر الفرع",
+  "allBranches": "كل الفروع",
+  "active": "نشط",
+  "inactive": "غير نشط",
+  "switchBranch": "تبديل الفرع",
+  "noBranches": "لم يتم العثور على فروع",
+  "unauthorized": "غير مسموح بالوصول لهذا الفرع"
+}

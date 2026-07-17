@@ -1,0 +1,373 @@
+{
+  "version": 1,
+  "description": "Order creation — ORD-001 validation and creation rules",
+  "targets": ["backend", "desktop"],
+  "scenarios": [
+    {
+      "id": "order-creation-001",
+      "description": "Successful order creation with valid items and customer",
+      "function": "createOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 2, "unitPrice": 25.0 },
+          { "productId": "prod-latte", "productName": "Latte", "quantity": 1, "unitPrice": 30.0 }
+        ],
+        "customer": { "name": "Ahmed", "phone": "01012345678" },
+        "sourceType": "INSIDE_CAFE",
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main",
+        "createdByRole": "BARISTA",
+        "employeeAttributedTo": null
+      },
+      "expectedOutput": {
+        "success": true,
+        "status": "NEW",
+        "total": 80.0,
+        "codePattern": "CAF-*",
+        "itemsCount": 2,
+        "customerName": "Ahmed",
+        "sourceType": "INSIDE_CAFE"
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-001"]
+    },
+    {
+      "id": "order-creation-002",
+      "description": "Order creation with zero-price complementary items",
+      "function": "createOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 },
+          { "productId": "prod-water", "productName": "Water", "quantity": 1, "unitPrice": 0.0 }
+        ],
+        "customer": { "name": "Mona", "phone": "01098765432" },
+        "sourceType": "INSIDE_CAFE",
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main",
+        "createdByRole": "BARISTA",
+        "employeeAttributedTo": null
+      },
+      "expectedOutput": {
+        "success": true,
+        "status": "NEW",
+        "total": 25.0,
+        "itemsCount": 2
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-001"]
+    },
+    {
+      "id": "order-creation-003",
+      "description": "Order creation with outside-cafe source type",
+      "function": "createOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-latte", "productName": "Latte", "quantity": 2, "unitPrice": 30.0 }
+        ],
+        "customer": { "name": "Omar", "phone": "01112345678" },
+        "sourceType": "OUTSIDE_CAFE",
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main",
+        "createdByRole": "BARISTA",
+        "employeeAttributedTo": null
+      },
+      "expectedOutput": {
+        "success": true,
+        "status": "NEW",
+        "total": 60.0,
+        "sourceType": "OUTSIDE_CAFE"
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-001"]
+    },
+    {
+      "id": "order-creation-004",
+      "description": "Order creation with WhatsApp source type",
+      "function": "createOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-mocha", "productName": "Mocha", "quantity": 1, "unitPrice": 35.0 }
+        ],
+        "customer": { "name": "Khaled", "phone": "01234567890" },
+        "sourceType": "WHATSAPP_ORDER",
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main",
+        "createdByRole": "BARISTA",
+        "employeeAttributedTo": null
+      },
+      "expectedOutput": {
+        "success": true,
+        "status": "NEW",
+        "total": 35.0,
+        "sourceType": "WHATSAPP_ORDER"
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-001"]
+    },
+    {
+      "id": "order-creation-005",
+      "description": "Order creation with employee attribution (employeeId set)",
+      "function": "createOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 }
+        ],
+        "customer": { "name": "Nadia", "phone": "01055555555" },
+        "sourceType": "INSIDE_CAFE",
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main",
+        "createdByRole": "BARISTA",
+        "employeeAttributedTo": "staff-ali"
+      },
+      "expectedOutput": {
+        "success": true,
+        "status": "NEW",
+        "total": 25.0,
+        "attributedTo": "staff-ali"
+      },
+      "type": "object",
+      "tags": ["ord-001", "emp-006"]
+    },
+    {
+      "id": "order-creation-006",
+      "description": "Duplicate order prevention via idempotency key",
+      "function": "createOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 }
+        ],
+        "customer": { "name": "Hossam", "phone": "01011111111" },
+        "sourceType": "INSIDE_CAFE",
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main",
+        "createdByRole": "BARISTA",
+        "idempotencyKey": "idem-001"
+      },
+      "secondCallWithSameKey": true,
+      "expectedOutput": {
+        "success": true,
+        "duplicateDetected": true,
+        "sameOrderReturned": true,
+        "status": "NEW"
+      },
+      "type": "object",
+      "tags": ["regression", "ord-001"]
+    },
+    {
+      "id": "order-creation-007",
+      "description": "Order creation with empty items array is rejected",
+      "function": "validateOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [],
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main"
+      },
+      "expectedOutput": {
+        "valid": false,
+        "error": "Order items must not be empty"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-001"]
+    },
+    {
+      "id": "order-creation-008",
+      "description": "Order creation with inactive product is rejected",
+      "function": "validateOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-inactive", "productName": "Inactive Item", "quantity": 1, "unitPrice": 10.0 }
+        ],
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main"
+      },
+      "expectedOutput": {
+        "valid": false,
+        "error": "Product is not active"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-001"]
+    },
+    {
+      "id": "order-creation-009",
+      "description": "Order creation with zero quantity is rejected",
+      "function": "validateOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 0, "unitPrice": 25.0 }
+        ],
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main"
+      },
+      "expectedOutput": {
+        "valid": false,
+        "error": "Item quantity must be greater than zero"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-001"]
+    },
+    {
+      "id": "order-creation-010",
+      "description": "Order creation with negative quantity is rejected",
+      "function": "validateOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": -1, "unitPrice": 25.0 }
+        ],
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main"
+      },
+      "expectedOutput": {
+        "valid": false,
+        "error": "Item quantity must be greater than zero"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-001"]
+    },
+    {
+      "id": "order-creation-011",
+      "description": "Order creation with product from wrong cafe is rejected",
+      "function": "validateOrder",
+      "targets": ["backend"],
+      "input": {
+        "items": [
+          { "productId": "prod-other-cafe", "productName": "Other Cafe Product", "quantity": 1, "unitPrice": 25.0 }
+        ],
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main"
+      },
+      "expectedOutput": {
+        "valid": false,
+        "error": "Product does not belong to this cafe"
+      },
+      "type": "object",
+      "tags": ["security", "ord-001"]
+    },
+    {
+      "id": "order-creation-012",
+      "description": "Order creation with invalid customer phone is rejected",
+      "function": "validateOrder",
+      "targets": ["backend"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 }
+        ],
+        "customer": { "name": "Test", "phone": "invalid" },
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main"
+      },
+      "expectedOutput": {
+        "valid": false,
+        "error": "Invalid customer phone number"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-001"]
+    },
+    {
+      "id": "order-creation-013",
+      "description": "Customer auto-creation when new phone is provided",
+      "function": "createOrder",
+      "targets": ["backend"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 }
+        ],
+        "customer": { "name": "New Customer", "phone": "01099999999" },
+        "sourceType": "INSIDE_CAFE",
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main",
+        "createdByRole": "BARISTA",
+        "employeeAttributedTo": null
+      },
+      "expectedOutput": {
+        "success": true,
+        "status": "NEW",
+        "customerCreated": true,
+        "customerPhone": "01099999999"
+      },
+      "type": "object",
+      "tags": ["regression", "cus-001", "ord-001"]
+    },
+    {
+      "id": "order-creation-014",
+      "description": "BARISTA can create order — permission check",
+      "function": "checkPermission",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "action": "createOrder",
+        "role": "BARISTA",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "allowed": true
+      },
+      "type": "object",
+      "tags": ["security", "emp-003", "ord-001"]
+    },
+    {
+      "id": "order-creation-015",
+      "description": "DRIVER can create order — permission check",
+      "function": "checkPermission",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "action": "createOrder",
+        "role": "DRIVER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "allowed": true
+      },
+      "type": "object",
+      "tags": ["security", "emp-003", "ord-001"]
+    },
+    {
+      "id": "order-creation-016",
+      "description": "OWNER can create order — permission check",
+      "function": "checkPermission",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "action": "createOrder",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "allowed": true
+      },
+      "type": "object",
+      "tags": ["security", "emp-003", "ord-001"]
+    },
+    {
+      "id": "order-creation-017",
+      "description": "Order code format: CAF-YYYYMMDD-random",
+      "function": "createOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 }
+        ],
+        "customer": { "name": "Code Test", "phone": "01077777777" },
+        "sourceType": "INSIDE_CAFE",
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main",
+        "createdByRole": "BARISTA",
+        "employeeAttributedTo": null
+      },
+      "expectedOutput": {
+        "success": true,
+        "codePattern": "CAF-\\d{8}-[a-zA-Z0-9]+",
+        "status": "NEW"
+      },
+      "type": "object",
+      "tags": ["format", "ord-001"]
+    }
+  ]
+}

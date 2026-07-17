@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "description": "Order refund and financial reversal — PAY-004 void reversal, RFS-001 refund workflow, paid-order cancellation",
+  "targets": ["backend", "desktop"],
+  "scenarios": [
+    {
+      "id": "order-refund-001",
+      "description": "OWNER cancels a PAID order — triggers financial reversal",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PAID",
+        "paymentStatus": "PAID",
+        "amountPaid": 50.0,
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CANCELLED",
+        "sideEffects": ["financial.reversal.created", "inventory.restored"],
+        "reversalAmount": 50.0,
+        "reversalType": "income_void"
+      },
+      "type": "object",
+      "tags": ["smoke", "pay-004", "rfs-001"]
+    },
+    {
+      "id": "order-refund-002",
+      "description": "Cash payment void within 12 hours — barista wallet decremented",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "paymentStatus": "PAID",
+        "paymentMethod": "CASH",
+        "amountPaid": 30.0,
+        "orderType": "IN_CAFE",
+        "role": "OWNER",
+        "timeSincePaymentHours": 1,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "VOID",
+        "cashRefundProcessed": true,
+        "walletDecrementAmount": 30.0,
+        "sideEffects": ["cash.wallet.decremented", "financial.reversal.created", "inventory.restored"]
+      },
+      "type": "object",
+      "tags": ["regression", "pay-004", "rfs-001"]
+    },
+    {
+      "id": "order-refund-003",
+      "description": "Cash payment void outside 12-hour window — wallet NOT decremented",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "paymentStatus": "PAID",
+        "paymentMethod": "CASH",
+        "amountPaid": 20.0,
+        "orderType": "IN_CAFE",
+        "role": "OWNER",
+        "timeSincePaymentHours": 13,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "VOID",
+        "cashRefundProcessed": false,
+        "sideEffects": ["financial.reversal.created", "inventory.restored"],
+        "note": "Outside 12-hour cash refund window"
+      },
+      "type": "object",
+      "tags": ["edge-case", "pay-004", "rfs-001"]
+    },
+    {
+      "id": "order-refund-004",
+      "description": "Card payment void — external refund required, no wallet change",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "paymentStatus": "PAID",
+        "paymentMethod": "CARD",
+        "amountPaid": 40.0,
+        "orderType": "IN_CAFE",
+        "role": "OWNER",
+        "timeSincePaymentHours": 2,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "VOID",
+        "cashRefundProcessed": false,
+        "sideEffects": ["financial.reversal.created", "inventory.restored"],
+        "note": "Card refund requires external processing"
+      },
+      "type": "object",
+      "tags": ["edge-case", "pay-004", "rfs-001"]
+    },
+    {
+      "id": "order-refund-005",
+      "description": "Financial reversal creates reversing income_void transaction",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "paymentStatus": "PAID",
+        "paymentMethod": "CASH",
+        "amountPaid": 25.0,
+        "orderType": "IN_CAFE",
+        "role": "OWNER",
+        "timeSincePaymentHours": 1,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "financialTransaction": {
+          "type": "income_void",
+          "amount": -25.0,
+          "referenceOrderId": "order-refund-005"
+        }
+      },
+      "type": "object",
+      "tags": ["audit", "pay-004"]
+    }
+  ]
+}

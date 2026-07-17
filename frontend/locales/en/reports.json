@@ -1,0 +1,36 @@
+{
+  "title": "Reports Generator",
+  "types": {
+    "SALES": { "name": "Sales Report", "description": "Revenue, orders, average order value over time" },
+    "ORDERS": { "name": "Orders Report", "description": "Order statistics, status distribution, processing times" },
+    "PROFIT": { "name": "Profit Report", "description": "Revenue vs cost analysis, profit margins" },
+    "INVENTORY": { "name": "Inventory Report", "description": "Stock levels, usage trends, low stock alerts" },
+    "EMPLOYEE_PERFORMANCE": { "name": "Employee Performance Report", "description": "Employee metrics, efficiency scores" }
+  },
+  "config": {
+    "title": "Report Configuration",
+    "from": "From",
+    "to": "To",
+    "groupBy": "Group By",
+    "format": "Format",
+    "generate": "Generate Report",
+    "generating": "Generating..."
+  },
+  "status": {
+    "pending": "Pending",
+    "processing": "Processing",
+    "completed": "Completed",
+    "failed": "Failed",
+    "jobId": "Job ID",
+    "generatingData": "Generating report data..."
+  },
+  "history": {
+    "title": "Previously Generated Reports",
+    "empty": "No reports generated yet",
+    "page": "Page {page} of {pages}",
+    "previous": "Previous",
+    "next": "Next",
+    "download": "Download",
+    "delete": "Delete"
+  }
+}

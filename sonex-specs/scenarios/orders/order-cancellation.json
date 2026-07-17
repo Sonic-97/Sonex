@@ -1,0 +1,331 @@
+{
+  "version": 1,
+  "description": "Order cancellation — ORD-004 with P0.6 role-based cancellation rules",
+  "targets": ["backend", "desktop"],
+  "scenarios": [
+    {
+      "id": "order-cancel-001",
+      "description": "OWNER can cancel an unpaid order in NEW status",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CANCELLED",
+        "sideEffects": ["cancelledAt.set", "inventory.restored"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-004"]
+    },
+    {
+      "id": "order-cancel-002",
+      "description": "OWNER can cancel an unpaid order in CONFIRMED status",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "CONFIRMED",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CANCELLED",
+        "sideEffects": ["cancelledAt.set", "inventory.restored"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-004"]
+    },
+    {
+      "id": "order-cancel-003",
+      "description": "OWNER can cancel a PAID order (financial reversal required)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PAID",
+        "paymentStatus": "PAID",
+        "orderType": "DELIVERY",
+        "amountPaid": 50.0,
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CANCELLED",
+        "sideEffects": ["cancelledAt.set", "inventory.restored", "financial.reversal.created"]
+      },
+      "type": "object",
+      "tags": ["regression", "ord-004"]
+    },
+    {
+      "id": "order-cancel-004",
+      "description": "OWNER can cancel a DELIVERED order (not yet paid)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CANCELLED",
+        "sideEffects": ["cancelledAt.set", "inventory.restored"]
+      },
+      "type": "object",
+      "tags": ["ord-004"]
+    },
+    {
+      "id": "order-cancel-005",
+      "description": "CANCELLED is terminal: further transitions rejected",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "CANCELLED",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Order is already in terminal state"
+      },
+      "type": "object",
+      "tags": ["terminal", "ord-004"]
+    },
+    {
+      "id": "order-cancel-006",
+      "description": "BARISTA can cancel an unpaid in-cafe order (NEW status)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "paymentStatus": "UNPAID",
+        "orderType": "IN_CAFE",
+        "role": "BARISTA",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CANCELLED",
+        "sideEffects": ["cancelledAt.set", "inventory.restored"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-004"]
+    },
+    {
+      "id": "order-cancel-007",
+      "description": "BARISTA can cancel an unpaid in-cafe order (PREPARING status)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PREPARING",
+        "paymentStatus": "UNPAID",
+        "orderType": "IN_CAFE",
+        "role": "BARISTA",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CANCELLED",
+        "sideEffects": ["cancelledAt.set", "inventory.restored"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-004"]
+    },
+    {
+      "id": "order-cancel-008",
+      "description": "BARISTA cannot cancel a PAID order (OWNER only for paid cancellations)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PAID",
+        "paymentStatus": "PAID",
+        "orderType": "IN_CAFE",
+        "amountPaid": 25.0,
+        "role": "BARISTA",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Only OWNER can cancel paid orders"
+      },
+      "type": "object",
+      "tags": ["security", "ord-004", "p0.6-resolution"]
+    },
+    {
+      "id": "order-cancel-009",
+      "description": "DRIVER can cancel their own unpaid delivery order (NEW status)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "DRIVER",
+        "driverAssigned": true,
+        "driverOwnOrder": true,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CANCELLED",
+        "sideEffects": ["cancelledAt.set", "inventory.restored"]
+      },
+      "type": "object",
+      "tags": ["ord-004", "p0.6-resolution"]
+    },
+    {
+      "id": "order-cancel-010",
+      "description": "DRIVER cannot cancel an order assigned to another driver",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "DRIVER",
+        "driverAssigned": true,
+        "driverOwnOrder": false,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Cannot cancel an order assigned to another driver"
+      },
+      "type": "object",
+      "tags": ["security", "ord-004", "p0.6-resolution"]
+    },
+    {
+      "id": "order-cancel-011",
+      "description": "DRIVER cannot cancel a PICKED_UP order (already in transit)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PICKED_UP",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "DRIVER",
+        "driverAssigned": true,
+        "driverOwnOrder": true,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Cannot cancel order in transit"
+      },
+      "type": "object",
+      "tags": ["security", "ord-004", "p0.6-resolution"]
+    },
+    {
+      "id": "order-cancel-012",
+      "description": "BARISTA cannot cancel a delivery order (in-cafe orders only)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "BARISTA",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "BARISTA can only cancel in-cafe orders"
+      },
+      "type": "object",
+      "tags": ["security", "ord-004", "p0.6-resolution"]
+    },
+    {
+      "id": "order-cancel-013",
+      "description": "Cancellation restores inventory reservation (CONFIRMED order)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "CONFIRMED",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "inventoryReserved": true,
+        "inventoryConfirmed": true,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CANCELLED",
+        "stockRestored": true,
+        "reservationReleased": true
+      },
+      "type": "object",
+      "tags": ["regression", "ord-004", "inv-003"]
+    },
+    {
+      "id": "order-cancel-014",
+      "description": "Idempotent cancellation: cancelling an already cancelled order returns success",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "CANCELLED",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "idempotent": true
+      },
+      "type": "object",
+      "tags": ["edge-case", "ord-004"]
+    },
+    {
+      "id": "order-cancel-015",
+      "description": "Cancellation requires cafe ownership (cross-cafe denial)",
+      "function": "cancelOrder",
+      "targets": ["backend"],
+      "input": {
+        "currentStatus": "NEW",
+        "paymentStatus": "UNPAID",
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01",
+        "orderCafeId": "cafe-other"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Order does not belong to this cafe"
+      },
+      "type": "object",
+      "tags": ["security", "ord-004"]
+    },
+    {
+      "id": "order-cancel-016",
+      "description": "CLOSED order cannot be cancelled (terminal state)",
+      "function": "cancelOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "CLOSED",
+        "paymentStatus": "PAID",
+        "orderType": "DELIVERY",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Order is in terminal state"
+      },
+      "type": "object",
+      "tags": ["terminal", "ord-004"]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "title": "Inventory",
+  "status": {
+    "NORMAL": "Normal",
+    "LOW": "Low Stock",
+    "OUT_OF_STOCK": "Out of Stock"
+  },
+  "columns": {
+    "itemName": "Item Name",
+    "unit": "Unit",
+    "currentQty": "Current Qty",
+    "minThreshold": "Min Threshold",
+    "costPerUnit": "Cost/Unit",
+    "status": "Status",
+    "actions": "Actions"
+  },
+  "noItems": "No inventory items found",
+  "alerts": {
+    "lowStock": "Low Stock Alert",
+    "outOfStock": "Out of Stock Alert",
+    "reorder": "Reorder Now"
+  },
+  "purchases": "Inventory Purchases"
+}

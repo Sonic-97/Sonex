@@ -1,0 +1,441 @@
+{
+  "version": 1,
+  "description": "Order status machine — ORD-002 delivery order state transitions with role authorization",
+  "targets": ["backend", "desktop"],
+  "scenarios": [
+    {
+      "id": "order-sm-001",
+      "description": "NEW to CONFIRMED: BARISTA can confirm an order",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "CONFIRMED",
+        "role": "BARISTA",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CONFIRMED",
+        "sideEffects": ["confirmedAt.set", "inventory.deducted"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-002",
+      "description": "NEW to CONFIRMED: OWNER can confirm an order",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "CONFIRMED",
+        "role": "OWNER",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CONFIRMED",
+        "sideEffects": ["confirmedAt.set", "inventory.deducted"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-003",
+      "description": "NEW to CONFIRMED: DRIVER is denied (unauthorized role)",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "CONFIRMED",
+        "role": "DRIVER",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Unauthorized role for this transition"
+      },
+      "type": "object",
+      "tags": ["security", "ord-002"]
+    },
+    {
+      "id": "order-sm-004",
+      "description": "CONFIRMED to PREPARING: BARISTA starts preparation",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "CONFIRMED",
+        "targetStatus": "PREPARING",
+        "role": "BARISTA",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "PREPARING",
+        "sideEffects": ["preparedAt.set"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-005",
+      "description": "PREPARING to READY: BARISTA marks order ready",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PREPARING",
+        "targetStatus": "READY",
+        "role": "BARISTA",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "READY",
+        "sideEffects": ["readyAt.set", "order.ready.emitted"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-006",
+      "description": "CONFIRMED to READY: shortcut via Mark Ready (PREPARING auto-set)",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "CONFIRMED",
+        "targetStatus": "READY",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "shortcut": true
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "READY",
+        "sideEffects": ["preparedAt.set", "readyAt.set", "order.ready.emitted"],
+        "preparingAutoSet": true
+      },
+      "type": "object",
+      "tags": ["ux-shortcut", "ord-002"]
+    },
+    {
+      "id": "order-sm-007",
+      "description": "READY to PICKED_UP: DRIVER picks up order",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "READY",
+        "targetStatus": "PICKED_UP",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "driverAssigned": true
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "PICKED_UP",
+        "sideEffects": ["pickedUpAt.set"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-008",
+      "description": "READY to PICKED_UP: OWNER can also perform this transition",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "READY",
+        "targetStatus": "PICKED_UP",
+        "role": "OWNER",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "PICKED_UP",
+        "sideEffects": ["pickedUpAt.set"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-009",
+      "description": "READY to PICKED_UP: BARISTA is denied",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "READY",
+        "targetStatus": "PICKED_UP",
+        "role": "BARISTA",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Unauthorized role for this transition"
+      },
+      "type": "object",
+      "tags": ["security", "ord-002"]
+    },
+    {
+      "id": "order-sm-010",
+      "description": "PICKED_UP to DELIVERED: DRIVER completes delivery",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PICKED_UP",
+        "targetStatus": "DELIVERED",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "driverAssigned": true
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "DELIVERED",
+        "sideEffects": ["deliveredAt.set", "order.delivered.emitted"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-011",
+      "description": "DELIVERED to PAID: DRIVER collects payment",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "targetStatus": "PAID",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "paymentAmount": 50.0,
+        "paymentMethod": "CASH",
+        "driverAssigned": true
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "PAID",
+        "paymentStatus": "PAID",
+        "sideEffects": ["paidAt.set", "payment.log.created", "payment.collected.emitted"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-012",
+      "description": "DELIVERED to PAID: BARISTA can also collect payment",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "targetStatus": "PAID",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "paymentAmount": 50.0,
+        "paymentMethod": "CASH"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "PAID",
+        "paymentStatus": "PAID",
+        "sideEffects": ["paidAt.set", "payment.log.created"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-013",
+      "description": "PAID to CLOSED: OWNER closes the order",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PAID",
+        "targetStatus": "CLOSED",
+        "role": "OWNER",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CLOSED",
+        "sideEffects": ["closedAt.set"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-014",
+      "description": "PAID to CLOSED: BARISTA can also close the order",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PAID",
+        "targetStatus": "CLOSED",
+        "role": "BARISTA",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CLOSED",
+        "sideEffects": ["closedAt.set"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-002"]
+    },
+    {
+      "id": "order-sm-015",
+      "description": "CLOSED is terminal: further transitions are rejected",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "CLOSED",
+        "targetStatus": "PAID",
+        "role": "OWNER",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Order is in terminal state"
+      },
+      "type": "object",
+      "tags": ["terminal", "ord-002"]
+    },
+    {
+      "id": "order-sm-016",
+      "description": "Same-status transition is idempotent (NEW to NEW)",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "NEW",
+        "role": "BARISTA",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "NEW",
+        "idempotent": true
+      },
+      "type": "object",
+      "tags": ["edge-case", "ord-002"]
+    },
+    {
+      "id": "order-sm-017",
+      "description": "Invalid backward transition: READY back to CONFIRMED is rejected",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "READY",
+        "targetStatus": "CONFIRMED",
+        "role": "OWNER",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Invalid state transition"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-002"]
+    },
+    {
+      "id": "order-sm-018",
+      "description": "Invalid transition: NEW to DELIVERED (skipping intermediate states)",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "DELIVERED",
+        "role": "OWNER",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Invalid state transition"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-002"]
+    },
+    {
+      "id": "order-sm-019",
+      "description": "Invalid transition: CONFIRMED to PAID (skipping PREPARING, READY, PICKED_UP, DELIVERED)",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "CONFIRMED",
+        "targetStatus": "PAID",
+        "role": "OWNER",
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Invalid state transition"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-002"]
+    },
+    {
+      "id": "order-sm-020",
+      "description": "Full happy-path delivery lifecycle: NEW to CLOSED",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "transitions": [
+          { "from": "NEW", "to": "CONFIRMED", "role": "BARISTA" },
+          { "from": "CONFIRMED", "to": "PREPARING", "role": "BARISTA" },
+          { "from": "PREPARING", "to": "READY", "role": "BARISTA" },
+          { "from": "READY", "to": "PICKED_UP", "role": "DRIVER" },
+          { "from": "PICKED_UP", "to": "DELIVERED", "role": "DRIVER" },
+          { "from": "DELIVERED", "to": "PAID", "role": "DRIVER", "paymentAmount": 50.0, "paymentMethod": "CASH" },
+          { "from": "PAID", "to": "CLOSED", "role": "OWNER" }
+        ]
+      },
+      "expectedOutput": {
+        "success": true,
+        "finalStatus": "CLOSED",
+        "transitionsCompleted": 7,
+        "allTimestampsPresent": ["confirmedAt", "preparedAt", "readyAt", "pickedUpAt", "deliveredAt", "paidAt", "closedAt"]
+      },
+      "type": "object",
+      "tags": ["smoke", "regression", "ord-002"]
+    },
+    {
+      "id": "order-sm-021",
+      "description": "Shortcut happy path: NEW to CLOSED via Mark Ready shortcut",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "transitions": [
+          { "from": "NEW", "to": "CONFIRMED", "role": "BARISTA" },
+          { "from": "CONFIRMED", "to": "READY", "role": "BARISTA", "shortcut": true },
+          { "from": "READY", "to": "PICKED_UP", "role": "DRIVER" },
+          { "from": "PICKED_UP", "to": "DELIVERED", "role": "DRIVER" },
+          { "from": "DELIVERED", "to": "PAID", "role": "BARISTA", "paymentAmount": 50.0, "paymentMethod": "CASH" },
+          { "from": "PAID", "to": "CLOSED", "role": "BARISTA" }
+        ]
+      },
+      "expectedOutput": {
+        "success": true,
+        "finalStatus": "CLOSED",
+        "transitionsCompleted": 6,
+        "allTimestampsPresent": ["confirmedAt", "readyAt", "pickedUpAt", "deliveredAt", "paidAt", "closedAt"]
+      },
+      "type": "object",
+      "tags": ["ux-shortcut", "ord-002"]
+    },
+    {
+      "id": "order-sm-022",
+      "description": "NEW directly to PAID: rejected (cannot skip states via payment)",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "PAID",
+        "role": "OWNER",
+        "orderType": "DELIVERY",
+        "paymentAmount": 50.0
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Invalid state transition"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-002"]
+    }
+  ]
+}

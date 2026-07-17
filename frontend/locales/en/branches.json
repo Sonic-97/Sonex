@@ -1,0 +1,9 @@
+{
+  "selectBranch": "Select Branch",
+  "allBranches": "All Branches",
+  "active": "Active",
+  "inactive": "Inactive",
+  "switchBranch": "Switch Branch",
+  "noBranches": "No branches found",
+  "unauthorized": "Unauthorized branch access"
+}

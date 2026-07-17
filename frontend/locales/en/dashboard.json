@@ -1,0 +1,41 @@
+{
+  "kpis": {
+    "todayRevenue": "Today's Revenue",
+    "weeklyTrend": "Weekly Trend",
+    "monthlyGrowth": "Monthly Growth",
+    "pendingPayments": "Pending Payments",
+    "activeOrders": "Active Orders",
+    "lowStockItems": "Low Stock Items",
+    "currentOrders": "Current Orders",
+    "previousOrders": "Previous Orders",
+    "totalOrders": "Total Orders",
+    "totalCustomers": "Total Customers",
+    "totalProducts": "Active Products",
+    "activeDrivers": "Active Drivers"
+  },
+  "charts": {
+    "salesTrend": "Sales Trend",
+    "orderDistribution": "Order Distribution",
+    "revenueByCategory": "Revenue by Category",
+    "topProducts": "Top Products",
+    "peakHours": "Peak Hours",
+    "daily": "Daily",
+    "weekly": "Weekly",
+    "monthly": "Monthly",
+    "revenue": "Revenue",
+    "orders": "Orders",
+    "units": "Units Sold"
+  },
+  "dateRange": {
+    "today": "Today",
+    "week": "This Week",
+    "month": "This Month",
+    "custom": "Custom"
+  },
+  "trend": {
+    "up": "Up",
+    "down": "Down",
+    "stable": "Stable",
+    "vsPrevious": "vs previous period"
+  }
+}

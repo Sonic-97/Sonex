@@ -1,0 +1,28 @@
+{
+  "title": "الموظفون",
+  "roles": {
+    "OWNER": "المالك",
+    "BARISTA": "باريستا",
+    "DRIVER": "سائق"
+  },
+  "columns": {
+    "name": "الاسم",
+    "role": "الدور",
+    "phone": "الهاتف",
+    "active": "نشط",
+    "ordersHandled": "الطلبات المعالجة",
+    "performance": "الأداء",
+    "actions": "الإجراءات"
+  },
+  "noEmployees": "لم يتم العثور على موظفين",
+  "performance": {
+    "title": "أداء الموظفين",
+    "overall": "الدرجة الإجمالية",
+    "efficiency": "الكفاءة",
+    "revenue": "درجة الإيرادات",
+    "speed": "درجة السرعة",
+    "reliability": "الموثوقية"
+  },
+  "topPerformers": "الأفضل أداءً",
+  "underperformers": "الأقل أداءً"
+}

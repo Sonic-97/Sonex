@@ -1,0 +1,6 @@
+export type CustomerIntent = 'GREETING' | 'PROVIDE_NAME' | 'CREATE_ORDER' | 'SHOW_MENU' | 'CONFIRM_ORDER' | 'REJECT_CONFIRMATION' | 'CANCEL_ORDER' | 'MODIFY_ITEM' | 'UNKNOWN';
+export type ConversationState = 'NEW_SESSION' | 'AWAITING_CUSTOMER_NAME' | 'AWAITING_ORDER' | 'AWAITING_COFFEE_ROAST' | 'AWAITING_COFFEE_BLEND' | 'AWAITING_SUGAR' | 'AWAITING_CONFIRMATION' | 'AWAITING_MODIFICATION' | 'CANCELLED';
+export interface CoffeeEntities { roast?: 'LIGHT' | 'MEDIUM' | 'DARK'; blend?: 'PLAIN' | 'SPICED'; sugar?: 'NO_SUGAR' | 'LIGHT_SUGAR' | 'MEDIUM_SUGAR' | 'EXTRA_SUGAR'; quantity?: number; }
+export interface StructuredUnderstanding { language: 'ar-EG' | 'en'; intent: CustomerIntent; confidence: number; entities: { productQuery?: string; coffee?: CoffeeEntities }; conversationAction: 'CONTINUE' | 'ASK_CLARIFICATION' | 'ASK_MISSING_FIELD' | 'CONFIRM' | 'CANCEL'; missingFields: Array<'roast' | 'blend' | 'sugar'>; cancellation: boolean; }
+export interface ConversationIdentity { cafeId: string; channel: 'telegram' | 'whatsapp' | 'web'; botIdentity: string; customerIdentity: string; }
+export interface ConversationSession { identity: ConversationIdentity; state: ConversationState; customerName?: string; draft: CoffeeEntities; lastQuestion?: 'name' | 'order' | 'roast' | 'blend' | 'sugar' | 'confirmation'; clarificationAttempts: number; updatedAt: Date; }

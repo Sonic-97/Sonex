@@ -1,0 +1,25 @@
+{
+  "name": "Sonic Coffee OS",
+  "short_name": "Sonic Coffee",
+  "description": "Real-Time Café Operations Control Center",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7c3aed",
+  "orientation": "any",
+  "categories": ["business", "food", "productivity"],
+  "icons": [
+    { "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "shortcuts": [
+    { "name": "Dashboard", "url": "/owner/dashboard", "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }] },
+    { "name": "Orders", "url": "/owner/orders", "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }] },
+    { "name": "Reports", "url": "/owner/reports", "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }] }
+  ]
+}

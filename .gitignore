@@ -1,0 +1,99 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Debug / scratch / dev scripts
+scratch/
+_*.js
+_*.ps1
+*.ps1
+*.vbs
+*.cjs
+*.mjs
+test-flow*.js
+test-supertest*.js
+test-telegram*.js
+qa_runner.js
+check-*.js
+check-*.cjs
+check-*.mjs
+debug-*.js
+_audit*.js
+_verify*.js
+_clean*.js
+_forensic*.js
+_repair*.js
+reset-*.js
+reset-*.cjs
+verify-*.js
+verify-*.cjs
+trace-*.cmd
+trace-*.log
+*_fix.ps1
+*.err.txt
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+
+# Coverage
+coverage/
+lcov.info
+
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.docker
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Database
+*.sqlite
+*.db
+*.sqlite3
+prisma/*.db
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Docker
+data/
+database/
+
+# Temp files
+temp-body.json
+temp-cafe.json
+set-webhook.json
+
+# Test output
+test-results/
+junit.xml
+
+# Rust / Tauri build artifacts
+target/
+desktop/.next/
+desktop/out/
+desktop/node_modules/

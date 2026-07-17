@@ -1,0 +1,300 @@
+{
+  "version": 1,
+  "description": "Order payment — PAY-001 collection, PAY-004 void reversal, standardized payment statuses",
+  "targets": ["backend", "desktop"],
+  "scenarios": [
+    {
+      "id": "order-pay-001",
+      "description": "Full payment transitions DELIVERED to PAID (cash)",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 50.0,
+        "paymentAmount": 50.0,
+        "paymentMethod": "CASH",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "PAID",
+        "paymentStatus": "PAID",
+        "remainingAmount": 0.0,
+        "sideEffects": ["payment.log.created", "paidAt.set"]
+      },
+      "type": "object",
+      "tags": ["smoke", "pay-001"]
+    },
+    {
+      "id": "order-pay-002",
+      "description": "Partial payment: 30 EGP paid on 50 EGP total (becomes PARTIALLY_PAID)",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 50.0,
+        "paymentAmount": 30.0,
+        "paymentMethod": "CASH",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "remainingAmount": 20.0,
+        "paymentStatus": "PARTIALLY_PAID",
+        "sideEffects": ["payment.log.created", "debt.created"],
+        "debtAmount": 20.0
+      },
+      "type": "object",
+      "tags": ["regression", "pay-001", "deb-001"]
+    },
+    {
+      "id": "order-pay-003",
+      "description": "Zero payment on delivery creates unpaid debt (UNPAID preserved)",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 50.0,
+        "paymentAmount": 0.0,
+        "paymentMethod": "CASH",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "paymentStatus": "UNPAID",
+        "sideEffects": ["payment.log.created", "debt.created"],
+        "debtAmount": 50.0,
+        "orderStatusRemains": "DELIVERED"
+      },
+      "type": "object",
+      "tags": ["edge-case", "pay-001", "deb-001"]
+    },
+    {
+      "id": "order-pay-004",
+      "description": "Payment amount exceeds order total is rejected",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 50.0,
+        "paymentAmount": 60.0,
+        "paymentMethod": "CASH",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Payment amount cannot exceed order total"
+      },
+      "type": "object",
+      "tags": ["validation", "pay-001"]
+    },
+    {
+      "id": "order-pay-005",
+      "description": "Negative payment amount is rejected",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 50.0,
+        "paymentAmount": -10.0,
+        "paymentMethod": "CASH",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Payment amount must be greater than zero"
+      },
+      "type": "object",
+      "tags": ["validation", "pay-001"]
+    },
+    {
+      "id": "order-pay-006",
+      "description": "Card payment on DELIVERED order is accepted (paymentStatus = PAID)",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 50.0,
+        "paymentAmount": 50.0,
+        "paymentMethod": "CARD",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "PAID",
+        "paymentStatus": "PAID",
+        "paymentMethod": "CARD",
+        "sideEffects": ["payment.log.created"]
+      },
+      "type": "object",
+      "tags": ["smoke", "pay-001"]
+    },
+    {
+      "id": "order-pay-007",
+      "description": "Cash payment by BARISTA increments cash wallet",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 25.0,
+        "paymentAmount": 25.0,
+        "paymentMethod": "CASH",
+        "role": "BARISTA",
+        "orderType": "IN_CAFE",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "paymentStatus": "PAID",
+        "cashWalletIncremented": true,
+        "walletIncrementAmount": 25.0
+      },
+      "type": "object",
+      "tags": ["regression", "pay-001"]
+    },
+    {
+      "id": "order-pay-008",
+      "description": "Payment on NEW order is rejected (order not in payable state)",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "orderTotal": 50.0,
+        "paymentAmount": 50.0,
+        "paymentMethod": "CASH",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Order is not in a payable status"
+      },
+      "type": "object",
+      "tags": ["validation", "pay-001"]
+    },
+    {
+      "id": "order-pay-009",
+      "description": "Standardized payment status vocabulary: UNPAID is the initial status",
+      "function": "getInitialPaymentStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "orderType": "DELIVERY"
+      },
+      "expectedOutput": {
+        "paymentStatus": "UNPAID"
+      },
+      "type": "object",
+      "tags": ["consistency", "pay-001", "p0.6-resolution"]
+    },
+    {
+      "id": "order-pay-010",
+      "description": "Standardized payment status vocabulary: in-cafe initial is also UNPAID",
+      "function": "getInitialPaymentStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "orderType": "IN_CAFE"
+      },
+      "expectedOutput": {
+        "paymentStatus": "UNPAID"
+      },
+      "type": "object",
+      "tags": ["consistency", "pay-001", "p0.6-resolution"]
+    },
+    {
+      "id": "order-pay-011",
+      "description": "Payment log records collector ID, role, method, amount, timestamp",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 50.0,
+        "paymentAmount": 50.0,
+        "paymentMethod": "CASH",
+        "role": "DRIVER",
+        "collectorId": "driver-ahmed",
+        "orderType": "DELIVERY",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "paymentLog": {
+          "collectorId": "driver-ahmed",
+          "collectorRole": "DRIVER",
+          "method": "CASH",
+          "amount": 50.0,
+          "timestampPresent": true
+        }
+      },
+      "type": "object",
+      "tags": ["audit", "pay-001"]
+    },
+    {
+      "id": "order-pay-012",
+      "description": "Unpaid delivery order: status stays DELIVERED, paymentStatus = UNPAID, debt created",
+      "function": "collectPayment",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 35.0,
+        "paymentAmount": 0.0,
+        "paymentMethod": "CASH",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "paymentStatus": "UNPAID",
+        "orderStatus": "DELIVERED",
+        "debtAmount": 35.0,
+        "debtReason": "Unpaid delivery"
+      },
+      "type": "object",
+      "tags": ["deb-001", "pay-001"]
+    },
+    {
+      "id": "order-pay-013",
+      "description": "CASH method is the only method for driver collections",
+      "function": "validatePaymentMethod",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "role": "DRIVER",
+        "paymentMethod": "CASH"
+      },
+      "expectedOutput": {
+        "valid": true
+      },
+      "type": "object",
+      "tags": ["validation", "pay-002"]
+    },
+    {
+      "id": "order-pay-014",
+      "description": "Driver cannot collect card payment",
+      "function": "validatePaymentMethod",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "role": "DRIVER",
+        "paymentMethod": "CARD"
+      },
+      "expectedOutput": {
+        "valid": false,
+        "error": "Driver can only collect cash"
+      },
+      "type": "object",
+      "tags": ["validation", "pay-002"]
+    }
+  ]
+}

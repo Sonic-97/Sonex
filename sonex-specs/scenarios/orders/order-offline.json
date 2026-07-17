@@ -1,0 +1,283 @@
+{
+  "version": 1,
+  "description": "Offline order behaviour — OFL-001, SYC-001 offline creation, sync, conflict resolution",
+  "targets": ["backend", "desktop"],
+  "scenarios": [
+    {
+      "id": "order-off-001",
+      "description": "Offline order created with temporary local ID",
+      "function": "createOrderOffline",
+      "targets": ["desktop"],
+      "input": {
+        "items": [
+          { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 }
+        ],
+        "customer": { "name": "Offline Customer", "phone": "01066666666" },
+        "sourceType": "INSIDE_CAFE",
+        "cafeId": "cafe-sonic-01",
+        "branchId": "branch-main",
+        "createdByRole": "BARISTA",
+        "isOffline": true
+      },
+      "expectedOutput": {
+        "success": true,
+        "status": "NEW",
+        "total": 25.0,
+        "hasLocalId": true,
+        "serverId": null,
+        "pendingSync": true
+      },
+      "type": "object",
+      "tags": ["smoke", "ofl-001"]
+    },
+    {
+      "id": "order-off-002",
+      "description": "Offline order status transitions are allowed locally",
+      "function": "transitionOrderStatus",
+      "targets": ["desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "CONFIRMED",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "isOffline": true
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "CONFIRMED",
+        "pendingSync": true
+      },
+      "type": "object",
+      "tags": ["smoke", "ofl-001"]
+    },
+    {
+      "id": "order-off-003",
+      "description": "Offline cash payment is accepted and final",
+      "function": "collectPayment",
+      "targets": ["desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 25.0,
+        "paymentAmount": 25.0,
+        "paymentMethod": "CASH",
+        "role": "BARISTA",
+        "orderType": "IN_CAFE",
+        "isOffline": true,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "paymentStatus": "PAID",
+        "cashFinal": true,
+        "pendingSync": true
+      },
+      "type": "object",
+      "tags": ["smoke", "ofl-001", "pay-001"]
+    },
+    {
+      "id": "order-off-004",
+      "description": "Offline card payment is rejected (requires online authorization)",
+      "function": "collectPayment",
+      "targets": ["desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 25.0,
+        "paymentAmount": 25.0,
+        "paymentMethod": "CARD",
+        "role": "BARISTA",
+        "orderType": "DELIVERY",
+        "isOffline": true,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Card payments require online authorization"
+      },
+      "type": "object",
+      "tags": ["validation", "ofl-001", "pay-001"]
+    },
+    {
+      "id": "order-off-005",
+      "description": "Offline order sync: local changes uploaded to server",
+      "function": "syncOrder",
+      "targets": ["desktop"],
+      "input": {
+        "localOrderId": "local-001",
+        "localChanges": {
+          "status": "CONFIRMED",
+          "paymentStatus": "UNPAID",
+          "items": [
+            { "productId": "prod-cappuccino", "productName": "Cappuccino", "quantity": 1, "unitPrice": 25.0 }
+          ],
+          "total": 25.0
+        },
+        "serverOnline": true
+      },
+      "expectedOutput": {
+        "success": true,
+        "serverId": "order-abc123",
+        "localIdReplaced": true,
+        "pendingSync": false
+      },
+      "type": "object",
+      "tags": ["smoke", "syc-001"]
+    },
+    {
+      "id": "order-off-006",
+      "description": "Offline sync conflict: server version wins (last-write-wins)",
+      "function": "syncOrder",
+      "targets": ["desktop"],
+      "input": {
+        "localOrderId": "local-002",
+        "localChanges": {
+          "status": "CANCELLED",
+          "version": 1
+        },
+        "serverVersion": {
+          "status": "DELIVERED",
+          "version": 3
+        },
+        "serverOnline": true
+      },
+      "expectedOutput": {
+        "success": true,
+        "resolution": "SERVER_WINS",
+        "finalStatus": "PAID",
+        "localStatusOverwritten": true
+      },
+      "type": "object",
+      "tags": ["regression", "syc-001"]
+    },
+    {
+      "id": "order-off-007",
+      "description": "Offline sync: inventory reservation deferred until server confirmation",
+      "function": "syncOrder",
+      "targets": ["desktop"],
+      "input": {
+        "localOrderId": "local-003",
+        "localChanges": {
+          "status": "CONFIRMED",
+          "inventoryReserved": false
+        },
+        "serverOnline": true,
+        "availableStock": 5,
+        "requiredStock": 3
+      },
+      "expectedOutput": {
+        "success": true,
+        "inventoryReserved": true,
+        "stockSufficient": true
+      },
+      "type": "object",
+      "tags": ["inv-003", "syc-001"]
+    },
+    {
+      "id": "order-off-008",
+      "description": "Offline sync: insufficient stock on server flags for manual review",
+      "function": "syncOrder",
+      "targets": ["desktop"],
+      "input": {
+        "localOrderId": "local-004",
+        "localChanges": {
+          "status": "CONFIRMED",
+          "inventoryReserved": false
+        },
+        "serverOnline": true,
+        "availableStock": 2,
+        "requiredStock": 5
+      },
+      "expectedOutput": {
+        "success": true,
+        "inventoryReserved": false,
+        "stockSufficient": false,
+        "flaggedForReview": true
+      },
+      "type": "object",
+      "tags": ["regression", "inv-003", "syc-001", "p0.6-resolution"]
+    },
+    {
+      "id": "order-off-009",
+      "description": "Offline sync queue persists across application restart",
+      "function": "syncOrder",
+      "targets": ["desktop"],
+      "input": {
+        "localOrderId": "local-005",
+        "pendingChanges": true,
+        "restartOccurred": true
+      },
+      "expectedOutput": {
+        "queuePersisted": true,
+        "pendingChangesAfterRestart": true
+      },
+      "type": "object",
+      "tags": ["reliability", "syc-001"]
+    },
+    {
+      "id": "order-off-010",
+      "description": "Offline driver action: driver can complete delivery with cached data",
+      "function": "transitionOrderStatus",
+      "targets": ["desktop"],
+      "input": {
+        "currentStatus": "PICKED_UP",
+        "targetStatus": "DELIVERED",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "driverAssigned": true,
+        "isOffline": true
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "DELIVERED",
+        "sideEffects": ["deliveredAt.set"],
+        "paymentDeferred": true
+      },
+      "type": "object",
+      "tags": ["regression", "ofl-001", "drv-001", "p0.6-resolution"]
+    },
+    {
+      "id": "order-off-011",
+      "description": "Offline driver payment collection deferred until online",
+      "function": "collectPayment",
+      "targets": ["desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "orderTotal": 50.0,
+        "paymentAmount": 50.0,
+        "paymentMethod": "CASH",
+        "role": "DRIVER",
+        "orderType": "DELIVERY",
+        "isOffline": true,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "paymentStatus": "UNPAID",
+        "paymentDeferred": true,
+        "deferredAmount": 50.0,
+        "pendingSync": true
+      },
+      "type": "object",
+      "tags": ["regression", "ofl-001", "pay-002"]
+    },
+    {
+      "id": "order-off-012",
+      "description": "Retry with exponential backoff on sync failure",
+      "function": "syncOrder",
+      "targets": ["desktop"],
+      "input": {
+        "localOrderId": "local-006",
+        "pendingChanges": true,
+        "syncAttempts": 3,
+        "serverOnline": false
+      },
+      "expectedOutput": {
+        "retryCount": 3,
+        "backoffApplied": true,
+        "queuePersisted": true,
+        "nextRetryDelayGreater": true
+      },
+      "type": "object",
+      "tags": ["reliability", "syc-001"]
+    }
+  ]
+}

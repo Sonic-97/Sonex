@@ -1,0 +1,140 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f7f5;
+  --foreground: #1f2933;
+  --sonex-primary: #8c6239;
+  --sonex-primary-hover: #6f4d2d;
+  --sonex-primary-light: #f4e9dd;
+  --sonex-espresso: #211816;
+  --sonex-teal: #0f766e;
+  --sonex-surface: #ffffff;
+  --sonex-muted: #f1f0ec;
+  --sonex-border: #e2e0da;
+  --sonex-text-muted: #667085;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "IBM Plex Sans Arabic", var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@keyframes pulse-scale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-pulse-scale {
+  animation: pulse-scale 1s ease-in-out 2;
+}
+
+.animate-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* ── RTL Support ── */
+
+[dir="rtl"] {
+  text-align: right;
+}
+
+[dir="rtl"] .ltr-icon {
+  transform: scaleX(-1);
+}
+
+[dir="rtl"] .space-x-reverse > :not([hidden]) ~ :not([hidden]) {
+  --tw-space-x-reverse: 1;
+}
+
+[dir="rtl"] .ml-auto {
+  margin-left: 0;
+  margin-right: auto;
+}
+
+[dir="rtl"] .mr-auto {
+  margin-right: 0;
+  margin-left: auto;
+}
+
+[dir="rtl"] .pl-4 {
+  padding-left: 0;
+  padding-right: 1rem;
+}
+
+[dir="rtl"] .pr-4 {
+  padding-right: 0;
+  padding-left: 1rem;
+}
+
+[dir="rtl"] .left-0 {
+  left: auto;
+  right: 0;
+}
+
+[dir="rtl"] .right-0 {
+  right: auto;
+  left: 0;
+}
+
+[dir="rtl"] .border-l {
+  border-left: none;
+  border-right: 1px solid;
+}
+
+[dir="rtl"] .border-r {
+  border-right: none;
+  border-left: 1px solid;
+}
+
+[dir="rtl"] .ml-60 {
+  margin-left: 0;
+  margin-right: 15rem;
+}
+
+[dir="rtl"] .mr-2 {
+  margin-right: 0;
+  margin-left: 0.5rem;
+}
+
+[dir="rtl"] .mr-3 {
+  margin-right: 0;
+  margin-left: 0.75rem;
+}
+
+/* Chart RTL support */
+[dir="rtl"] .recharts-text {
+  direction: ltr;
+  unicode-bidi: embed;
+}
+
+/* Form inputs in RTL */
+[dir="rtl"] input[type="text"],
+[dir="rtl"] input[type="email"],
+[dir="rtl"] input[type="tel"],
+[dir="rtl"] input[type="number"],
+[dir="rtl"] input[type="date"],
+[dir="rtl"] textarea,
+[dir="rtl"] select {
+  text-align: right;
+}
+
+/* Notch / safe area support */
+@supports (padding-top: env(safe-area-inset-top)) {
+  .safe-top { padding-top: env(safe-area-inset-top); }
+  .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+  .safe-left { padding-left: env(safe-area-inset-left); }
+  .safe-right { padding-right: env(safe-area-inset-right); }
+}

@@ -1,0 +1,27 @@
+{
+  "title": "Notifications",
+  "empty": "No notifications",
+  "markAllRead": "Mark All as Read",
+  "types": {
+    "NEW_ORDER": "New Order",
+    "ORDER_STATUS_CHANGED": "Order Status Changed",
+    "ORDER_DELIVERED": "Order Delivered",
+    "LOW_STOCK": "Low Stock Alert",
+    "PAYMENT_RECEIVED": "Payment Received",
+    "DRIVER_ASSIGNED": "Driver Assigned",
+    "REPORT_READY": "Report Ready",
+    "SYSTEM_ALERT": "System Alert",
+    "INVENTORY_UPDATED": "Inventory Updated",
+    "DRIVER_SETTLEMENT": "Driver Settlement",
+    "PAYMENT_FAILED": "Payment Failed"
+  },
+  "messages": {
+    "newOrder": "New order #{code} — ${amount}",
+    "orderStatusChanged": "Order #{code} status changed to {status}",
+    "orderDelivered": "Order #{code} has been delivered",
+    "lowStock": "{item} is running low ({qty} remaining)",
+    "paymentReceived": "Payment of ${amount} received for order #{code}",
+    "driverAssigned": "Driver {name} assigned to order #{code}",
+    "reportReady": "Your {type} report is ready for download"
+  }
+}

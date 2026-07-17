@@ -1,0 +1,41 @@
+{
+  "kpis": {
+    "todayRevenue": "إيرادات اليوم",
+    "weeklyTrend": "اتجاه الأسبوع",
+    "monthlyGrowth": "النمو الشهري",
+    "pendingPayments": "المدفوعات المعلقة",
+    "activeOrders": "الطلبات النشطة",
+    "lowStockItems": "عناصر المخزون المنخفض",
+    "currentOrders": "الطلبات الحالية",
+    "previousOrders": "الطلبات السابقة",
+    "totalOrders": "إجمالي الطلبات",
+    "totalCustomers": "إجمالي العملاء",
+    "totalProducts": "المنتجات النشطة",
+    "activeDrivers": "السائقون النشطون"
+  },
+  "charts": {
+    "salesTrend": "اتجاه المبيعات",
+    "orderDistribution": "توزيع الطلبات",
+    "revenueByCategory": "الإيرادات حسب التصنيف",
+    "topProducts": "أفضل المنتجات",
+    "peakHours": "ساعات الذروة",
+    "daily": "يومي",
+    "weekly": "أسبوعي",
+    "monthly": "شهري",
+    "revenue": "الإيرادات",
+    "orders": "الطلبات",
+    "units": "الوحدات المباعة"
+  },
+  "dateRange": {
+    "today": "اليوم",
+    "week": "هذا الأسبوع",
+    "month": "هذا الشهر",
+    "custom": "مخصص"
+  },
+  "trend": {
+    "up": "مرتفع",
+    "down": "منخفض",
+    "stable": "مستقر",
+    "vsPrevious": "مقارنة بالفترة السابقة"
+  }
+}

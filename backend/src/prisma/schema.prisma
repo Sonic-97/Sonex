@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id            String   @id @default(uuid())
+  phone         String   @unique
+  name          String?
+  favoriteDrink String?
+  totalOrders   Int      @default(0)
+  createdAt     DateTime @default(now())
+  orders        Order[]
+}
+
+model Staff {
+  id       String  @id @default(uuid())
+  name     String
+  role     String  // OWNER, BARISTA, HALL, DELIVERY
+  phone    String  @unique
+  pinHash  String
+  active   Boolean @default(true)
+  orders   Order[]
+}
+
+model Product {
+  id         String      @id @default(uuid())
+  name       String
+  category   String
+  price      Decimal
+  cost       Decimal
+  active     Boolean     @default(true)
+  orderItems OrderItem[]
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  code        String      @unique
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  customerId  String
+  staff       Staff?      @relation(fields: [staffId], references: [id])
+  staffId     String?
+  status      String      @default("NEW")
+  type        String      // DELIVERY, DINE_IN
+  total       Decimal
+  address     String?
+  printSent   Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  deliveredAt DateTime?
+  items       OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  quantity  Int
+  unitPrice Decimal
+  notes     String?
+}
+
+model Inventory {
+  id           String  @id @default(uuid())
+  itemName     String
+  unit         String
+  currentQty   Decimal
+  minThreshold Decimal
+  costPerUnit  Decimal
+}
+
+model Expense {
+  id          String   @id @default(uuid())
+  category    String   // INGREDIENTS, SALARIES, RENT, UTILITIES, OTHER
+  amount      Decimal
+  description String?
+  expenseDate DateTime @default(now())
+}

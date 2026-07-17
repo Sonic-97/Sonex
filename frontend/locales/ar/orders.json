@@ -1,0 +1,30 @@
+{
+  "title": "الطلبات",
+  "status": {
+    "NEW": "جديد",
+    "CONFIRMED": "مؤكد",
+    "READY": "جاهز",
+    "PICKED_UP": "تم الاستلام",
+    "DELIVERED": "تم التوصيل",
+    "PAID": "مدفوع",
+    "CLOSED": "مغلق",
+    "CANCELLED": "ملغي"
+  },
+  "paymentStatus": {
+    "UNPAID": "غير مدفوع",
+    "PAID": "مدفوع",
+    "PARTIAL_PAYMENT": "دفعة جزئية"
+  },
+  "columns": {
+    "code": "رقم الطلب",
+    "customer": "العميل",
+    "status": "الحالة",
+    "total": "الإجمالي",
+    "payment": "الدفع",
+    "driver": "السائق",
+    "createdAt": "تاريخ الإنشاء",
+    "actions": "الإجراءات"
+  },
+  "noOrders": "لم يتم العثور على طلبات",
+  "liveFeed": "الطلبات المباشرة"
+}

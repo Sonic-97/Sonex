@@ -1,0 +1,28 @@
+{
+  "title": "Employees",
+  "roles": {
+    "OWNER": "Owner",
+    "BARISTA": "Barista",
+    "DRIVER": "Driver"
+  },
+  "columns": {
+    "name": "Name",
+    "role": "Role",
+    "phone": "Phone",
+    "active": "Active",
+    "ordersHandled": "Orders Handled",
+    "performance": "Performance",
+    "actions": "Actions"
+  },
+  "noEmployees": "No employees found",
+  "performance": {
+    "title": "Employee Performance",
+    "overall": "Overall Score",
+    "efficiency": "Efficiency",
+    "revenue": "Revenue Score",
+    "speed": "Speed Score",
+    "reliability": "Reliability"
+  },
+  "topPerformers": "Top Performers",
+  "underperformers": "Underperformers"
+}

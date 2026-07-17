@@ -1,0 +1,27 @@
+{
+  "title": "الإشعارات",
+  "empty": "لا توجد إشعارات",
+  "markAllRead": "تحديد الكل كمقروء",
+  "types": {
+    "NEW_ORDER": "طلب جديد",
+    "ORDER_STATUS_CHANGED": "تغيرت حالة الطلب",
+    "ORDER_DELIVERED": "تم توصيل الطلب",
+    "LOW_STOCK": "تنبيه انخفاض المخزون",
+    "PAYMENT_RECEIVED": "تم استلام الدفع",
+    "DRIVER_ASSIGNED": "تم تعيين سائق",
+    "REPORT_READY": "التقرير جاهز",
+    "SYSTEM_ALERT": "تنبيه النظام",
+    "INVENTORY_UPDATED": "تم تحديث المخزون",
+    "DRIVER_SETTLEMENT": "تسوية السائق",
+    "PAYMENT_FAILED": "فشل الدفع"
+  },
+  "messages": {
+    "newOrder": "طلب جديد #{code} — ${amount}",
+    "orderStatusChanged": "تغيرت حالة الطلب #{code} إلى {status}",
+    "orderDelivered": "تم توصيل الطلب #{code}",
+    "lowStock": "{item} على وشك النفاد ({qty} متبقي)",
+    "paymentReceived": "تم استلام دفعة ${amount} للطلب #{code}",
+    "driverAssigned": "تم تعيين السائق {name} للطلب #{code}",
+    "reportReady": "تقرير {type} جاهز للتنزيل"
+  }
+}

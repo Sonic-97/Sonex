@@ -1,0 +1,15 @@
+{
+  "required": "{field} مطلوب",
+  "invalidEmail": "البريد الإلكتروني غير صالح",
+  "invalidPhone": "رقم الهاتف غير صالح",
+  "minLength": "يجب أن يكون {field} على الأقل {min} أحرف",
+  "maxLength": "يجب أن يكون {field} على الأكثر {max} أحرف",
+  "min": "يجب أن يكون {field} على الأقل {min}",
+  "max": "يجب أن يكون {field} على الأكثر {max}",
+  "number": "يجب أن يكون {field} رقماً",
+  "positive": "يجب أن يكون {field} موجباً",
+  "dateRange": "لا يمكن أن يتجاوز نطاق التاريخ سنة واحدة",
+  "invalidDate": "تاريخ غير صالح",
+  "invalidFormat": "صيغة غير صالحة",
+  "mustMatch": "يجب أن يتطابق {field} مع {otherField}"
+}

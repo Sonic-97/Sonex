@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "description": "In-cafe order flow — ORD-003 simplified lifecycle, void, and COMPLETED",
+  "targets": ["backend", "desktop"],
+  "scenarios": [
+    {
+      "id": "order-ic-001",
+      "description": "In-cafe full flow: NEW to COMPLETED",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "transitions": [
+          { "from": "NEW", "to": "PREPARING", "role": "BARISTA", "orderType": "IN_CAFE" },
+          { "from": "PREPARING", "to": "READY", "role": "BARISTA", "orderType": "IN_CAFE" },
+          { "from": "READY", "to": "DELIVERED", "role": "BARISTA", "orderType": "IN_CAFE" },
+          { "from": "DELIVERED", "to": "COMPLETED", "role": "BARISTA", "orderType": "IN_CAFE" }
+        ]
+      },
+      "expectedOutput": {
+        "success": true,
+        "finalStatus": "COMPLETED",
+        "transitionsCompleted": 4
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-003"]
+    },
+    {
+      "id": "order-ic-002",
+      "description": "In-cafe NEW to READY via shortcut (PREPARING auto-set)",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "transitions": [
+          { "from": "NEW", "to": "READY", "role": "BARISTA", "orderType": "IN_CAFE", "shortcut": true },
+          { "from": "READY", "to": "DELIVERED", "role": "BARISTA", "orderType": "IN_CAFE" },
+          { "from": "DELIVERED", "to": "COMPLETED", "role": "BARISTA", "orderType": "IN_CAFE" }
+        ]
+      },
+      "expectedOutput": {
+        "success": true,
+        "finalStatus": "COMPLETED",
+        "transitionsCompleted": 3,
+        "preparingAutoSet": true
+      },
+      "type": "object",
+      "tags": ["ux-shortcut", "ord-003"]
+    },
+    {
+      "id": "order-ic-003",
+      "description": "In-cafe order VOID from PREPARING (unpaid, role check applies)",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "PREPARING",
+        "paymentStatus": "UNPAID",
+        "orderType": "IN_CAFE",
+        "role": "BARISTA",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "VOID",
+        "sideEffects": ["inventory.restored", "void.timestamp.set"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-003"]
+    },
+    {
+      "id": "order-ic-004",
+      "description": "In-cafe order VOID from READY (unpaid)",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "READY",
+        "paymentStatus": "UNPAID",
+        "orderType": "IN_CAFE",
+        "role": "BARISTA",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "VOID",
+        "sideEffects": ["inventory.restored"]
+      },
+      "type": "object",
+      "tags": ["smoke", "ord-003"]
+    },
+    {
+      "id": "order-ic-005",
+      "description": "In-cafe VOID with cash payment within 12 hours (wallet decrement)",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "paymentStatus": "PAID",
+        "paymentMethod": "CASH",
+        "amountPaid": 25.0,
+        "orderType": "IN_CAFE",
+        "role": "OWNER",
+        "timeSincePaymentHours": 2,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "VOID",
+        "sideEffects": ["inventory.restored", "cash.wallet.decremented", "financial.reversal.created"],
+        "cashRefundProcessed": true,
+        "walletDecrementAmount": 25.0
+      },
+      "type": "object",
+      "tags": ["regression", "pay-004", "ord-003"]
+    },
+    {
+      "id": "order-ic-006",
+      "description": "In-cafe VOID with cash payment after 12 hours (wallet NOT decremented)",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "paymentStatus": "PAID",
+        "paymentMethod": "CASH",
+        "amountPaid": 25.0,
+        "orderType": "IN_CAFE",
+        "role": "OWNER",
+        "timeSincePaymentHours": 14,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "VOID",
+        "sideEffects": ["inventory.restored", "financial.reversal.created"],
+        "cashRefundProcessed": false,
+        "note": "Outside 12-hour refund window"
+      },
+      "type": "object",
+      "tags": ["edge-case", "pay-004", "ord-003"]
+    },
+    {
+      "id": "order-ic-007",
+      "description": "In-cafe VOID with card payment (no wallet decrement, external refund needed)",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "paymentStatus": "PAID",
+        "paymentMethod": "CARD",
+        "amountPaid": 25.0,
+        "orderType": "IN_CAFE",
+        "role": "OWNER",
+        "timeSincePaymentHours": 2,
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": true,
+        "newStatus": "VOID",
+        "sideEffects": ["inventory.restored", "financial.reversal.created"],
+        "cashRefundProcessed": false,
+        "note": "Card refund requires external processing"
+      },
+      "type": "object",
+      "tags": ["edge-case", "pay-004", "ord-003"]
+    },
+    {
+      "id": "order-ic-008",
+      "description": "In-cafe already VOID cannot be voided again",
+      "function": "voidOrder",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "VOID",
+        "paymentStatus": "PAID",
+        "orderType": "IN_CAFE",
+        "role": "OWNER",
+        "cafeId": "cafe-sonic-01"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Order is already voided"
+      },
+      "type": "object",
+      "tags": ["terminal", "ord-003"]
+    },
+    {
+      "id": "order-ic-009",
+      "description": "COMPLETED is terminal: further transitions rejected",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "COMPLETED",
+        "targetStatus": "DELIVERED",
+        "role": "BARISTA",
+        "orderType": "IN_CAFE"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Order is in terminal state"
+      },
+      "type": "object",
+      "tags": ["terminal", "ord-003"]
+    },
+    {
+      "id": "order-ic-010",
+      "description": "In-cafe COMPLETED status maps to delivery CLOSED (conceptual equivalence)",
+      "function": "mapTerminalStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "inCafeStatus": "COMPLETED",
+        "deliveryEquivalent": "CLOSED"
+      },
+      "expectedOutput": {
+        "equivalent": true
+      },
+      "type": "object",
+      "tags": ["clarification", "ord-003", "p0.6-resolution"]
+    },
+    {
+      "id": "order-ic-011",
+      "description": "In-cafe VOID maps to delivery CANCELLED (conceptual equivalence)",
+      "function": "mapTerminalStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "inCafeStatus": "VOID",
+        "deliveryEquivalent": "CANCELLED"
+      },
+      "expectedOutput": {
+        "equivalent": true
+      },
+      "type": "object",
+      "tags": ["clarification", "ord-003", "p0.6-resolution"]
+    },
+    {
+      "id": "order-ic-012",
+      "description": "In-cafe invalid transition: NEW to COMPLETED (skipping states)",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "NEW",
+        "targetStatus": "COMPLETED",
+        "role": "BARISTA",
+        "orderType": "IN_CAFE"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Invalid state transition"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-003"]
+    },
+    {
+      "id": "order-ic-013",
+      "description": "In-cafe invalid transition: DELIVERED to PREPARING (backwards)",
+      "function": "transitionOrderStatus",
+      "targets": ["backend", "desktop"],
+      "input": {
+        "currentStatus": "DELIVERED",
+        "targetStatus": "PREPARING",
+        "role": "BARISTA",
+        "orderType": "IN_CAFE"
+      },
+      "expectedOutput": {
+        "success": false,
+        "error": "Invalid state transition"
+      },
+      "type": "object",
+      "tags": ["validation", "ord-003"]
+    }
+  ]
+}

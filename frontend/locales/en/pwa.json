@@ -1,0 +1,29 @@
+{
+  "install": {
+    "title": "Install Sonic Coffee OS",
+    "message": "Install this app on your device for a better experience",
+    "install": "Install",
+    "dismiss": "Not now",
+    "iosInstructions": "To install, tap the Share button and select 'Add to Home Screen'"
+  },
+  "offline": {
+    "title": "You're offline",
+    "message": "Some features may be unavailable. Cached data is still accessible.",
+    "reconnected": "Back online!",
+    "syncing": "Syncing pending changes...",
+    "syncComplete": "All changes synced successfully",
+    "syncFailed": "Failed to sync some changes. Will retry."
+  },
+  "push": {
+    "title": "Enable Notifications",
+    "message": "Get notified about new orders and important updates",
+    "enable": "Enable Notifications",
+    "denied": "Notifications blocked. Please update your browser settings.",
+    "subscribed": "Notifications enabled successfully"
+  },
+  "sync": {
+    "pending": "{count} pending {count, plural, one {action} other {actions}}",
+    "syncNow": "Sync Now",
+    "retrying": "Retrying ({attempt}/{max})..."
+  }
+}
