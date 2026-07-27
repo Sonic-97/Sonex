@@ -56,6 +56,10 @@ lcov.info
 
 # Logs
 *.log
+*.err
+*.out
+*.pid
+*.pid.lock
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -94,6 +98,7 @@ junit.xml
 
 # Rust / Tauri build artifacts
 target/
+*.node
 desktop/.next/
 desktop/out/
 desktop/node_modules/
