@@ -537,7 +537,7 @@
   },
   "scripts": {
     "build": "npm run build:native && nest build",
-    "build:native": "cd ../sonex-core && npx napi build --platform --release --js index.js --dts index.d.ts",
+    "build:native": "npm --prefix ../sonex-core run build",
     "start": "nest start",
     "dev": "nest start --watch",
     "start:dev": "nest start --watch",
