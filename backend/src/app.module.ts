@@ -89,6 +89,7 @@ import { ReceiptModule } from './receipt/receipt.module';
 import { MenuImportModule } from './menu-import/menu-import.module';
 import { PricingModule } from './pricing/pricing.module';
 import { AdapterPlatformModule } from './adapter-platform/adapter-platform.module';
+import { ProductResolutionModule } from './product-resolution/product-resolution.module';
 @Module({
   imports: [
     AuditModule,
@@ -175,6 +176,7 @@ import { AdapterPlatformModule } from './adapter-platform/adapter-platform.modul
     MenuImportModule,
     PricingModule,
     AdapterPlatformModule,
+    ProductResolutionModule,
   ],
   controllers: [AppController],
   providers: [AppService, OrderBuilderService, MenuService, LocalizationService, TenantContextService],

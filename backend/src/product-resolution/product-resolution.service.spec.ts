@@ -40,4 +40,9 @@ describe('ProductResolutionService', () => {
     expect(service.resolve(input(), product({ sellingWindow })).availability.sellable).toBe(true);
     expect(() => service.resolve(input({ requestedAt: instant('2026-07-27T11:00:00.000Z') }), product({ sellingWindow }))).toThrow(ProductOutsideSellingWindowError);
   });
+  it('returns a non-sellable availability result for an unavailable branch', () => {
+    const result = service.resolve(input(), product({ branchAvailable: false }));
+    expect(result.availability.sellable).toBe(false);
+    expect(result.availability.reasons).toContain('BRANCH_UNAVAILABLE');
+  });
 });

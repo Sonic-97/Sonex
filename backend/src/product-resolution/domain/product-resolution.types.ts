@@ -9,14 +9,14 @@ export type ProductReference = Readonly<{ kind: 'PRODUCT_ID'; value: ProductId }
 export interface VariantSelection { readonly variantId?: VariantId; readonly name?: string; }
 export interface ModifierSelection { readonly groupId: ModifierGroupId; readonly choiceIds: readonly ModifierChoiceId[]; }
 export interface SellingWindow { readonly startTime?: string; readonly endTime?: string; readonly days?: readonly number[]; }
-export type AvailabilityReason = 'PRODUCT_ACTIVE' | 'VISIBLE' | 'WITHIN_SELLING_WINDOW';
-export interface AvailabilityResult { readonly sellable: true; readonly evaluatedAt: Instant; readonly reasons: readonly AvailabilityReason[]; readonly sellingWindow?: SellingWindow; readonly inventoryStatus: 'NOT_EVALUATED'; }
+export type AvailabilityReason = 'PRODUCT_ACTIVE' | 'VISIBLE' | 'WITHIN_SELLING_WINDOW' | 'BRANCH_UNAVAILABLE';
+export interface AvailabilityResult { readonly sellable: boolean; readonly evaluatedAt: Instant; readonly reasons: readonly AvailabilityReason[]; readonly sellingWindow?: SellingWindow; readonly inventoryStatus: 'NOT_EVALUATED'; }
 export interface CatalogVariant { readonly id: VariantId; readonly name: string; readonly priceAdjustment: string; readonly active: boolean; }
 export interface CatalogModifierChoice { readonly id: ModifierChoiceId; readonly name: string; readonly priceAdjustment: string; readonly active: boolean; }
 export interface CatalogModifierGroup { readonly id: ModifierGroupId; readonly name: string; readonly required: boolean; readonly multiSelect: boolean; readonly maximumSelections?: number; readonly choices: readonly CatalogModifierChoice[]; }
 export interface CatalogProduct {
   readonly id: ProductId; readonly tenantId: TenantId; readonly cafeId: CafeId; readonly name: string; readonly sku: string; readonly slug?: string; readonly barcode?: string; readonly basePrice: string;
-  readonly active: boolean; readonly deleted: boolean; readonly hidden: boolean; readonly variants: readonly CatalogVariant[]; readonly modifierGroups: readonly CatalogModifierGroup[]; readonly sellingWindow?: SellingWindow;
+  readonly active: boolean; readonly deleted: boolean; readonly hidden: boolean; readonly branchAvailable?: boolean; readonly variants: readonly CatalogVariant[]; readonly modifierGroups: readonly CatalogModifierGroup[]; readonly sellingWindow?: SellingWindow;
   readonly recipeReference: string | null; readonly taxCategory: string; readonly metadata: DeepReadonly<Record<string, JsonValue>>;
 }
 export interface ProductResolutionInput { readonly tenantId: TenantId; readonly cafeId: CafeId; readonly reference: ProductReference; readonly variant?: VariantSelection; readonly modifiers: readonly ModifierSelection[]; readonly quantity: Quantity; readonly requestedAt: Instant; readonly timezone: string; }

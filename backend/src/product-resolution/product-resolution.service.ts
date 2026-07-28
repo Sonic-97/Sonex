@@ -28,7 +28,7 @@ export class ProductResolutionService {
     return freezeContract<ProductResolutionResult>({
       contractVersion: CONTRACT_VERSION, productId: product.id, cafeId: product.cafeId, tenantId: product.tenantId, reference: input.reference,
       productName: product.name, sku: product.sku, quantity: input.quantity, variant: this.resolveVariant(input, product), modifiers: this.resolveModifiers(input.modifiers, product.modifierGroups),
-      basePrice: product.basePrice, availability: { sellable: true, evaluatedAt: resolvedAt, reasons: ['PRODUCT_ACTIVE', 'VISIBLE', 'WITHIN_SELLING_WINDOW'], ...(product.sellingWindow ? { sellingWindow: product.sellingWindow } : {}), inventoryStatus: 'NOT_EVALUATED' },
+      basePrice: product.basePrice, availability: { sellable: product.branchAvailable !== false, evaluatedAt: resolvedAt, reasons: [...(product.branchAvailable === false ? ['BRANCH_UNAVAILABLE' as const] : []), 'PRODUCT_ACTIVE', 'VISIBLE', 'WITHIN_SELLING_WINDOW'], ...(product.sellingWindow ? { sellingWindow: product.sellingWindow } : {}), inventoryStatus: 'NOT_EVALUATED' },
       recipeReference: product.recipeReference, taxCategory: product.taxCategory, metadata: product.metadata, resolvedAt,
     });
   }
