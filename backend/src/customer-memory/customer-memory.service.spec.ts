@@ -174,7 +174,7 @@ describe('CustomerMemoryService', () => {
 
     it('raises confidence only after repeated consistent orders', async () => {
       for (let i = 1; i <= 5; i++) await service.observeOrder(scope, observation(`same-${i}`));
-      const signal = (await service.getMemory(scope))?.inferredPreferences.sugarPreference;
+      const signal = (await service.getMemory(scope, new Date('2026-07-01T19:00:00Z')))?.inferredPreferences.sugarPreference;
       expect(signal?.evidenceCount).toBe(5);
       expect(signal?.confidence).toBeGreaterThanOrEqual(0.79);
     });

@@ -5,6 +5,7 @@ import { EventsService } from '../events/events.service';
 import { AuditService } from '../audit/audit.service';
 import { NotificationService } from '../notifications/notification.service';
 import { InventoryCacheService } from '../inventory/services/inventory-cache.service';
+import { InventoryIntegrityService } from '../inventory-integrity/inventory-integrity.service';
 import { DomainEventBusService } from '../domain-events';
 import { Prisma } from '@prisma/client';
 
@@ -23,6 +24,7 @@ describe('InventoryPipelineService', () => {
       inventory: {
         findUnique: jest.fn().mockResolvedValue(null),
         update: jest.fn().mockResolvedValue({}),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       stockReservation: {
         create: jest.fn().mockResolvedValue({}),
@@ -55,6 +57,34 @@ describe('InventoryPipelineService', () => {
         { provide: AuditService, useValue: { logAction: jest.fn() } },
         { provide: NotificationService, useValue: { createNotification: jest.fn() } },
         { provide: InventoryCacheService, useValue: { setStock: jest.fn() } },
+        {
+          provide: InventoryIntegrityService,
+          useValue: {
+            assertAvailable: jest.fn((inventory: { currentQty: Prisma.Decimal; reservedQty: Prisma.Decimal; itemName: string }, needed: Prisma.Decimal) => {
+              if (inventory.currentQty.sub(inventory.reservedQty).lt(needed)) {
+                throw new Error(`Insufficient stock for ${inventory.itemName}`);
+              }
+            }),
+            withRetry: jest.fn(async (
+              _inventoryId: string,
+              _operation: string,
+              operation: (inventory: { currentQty: Prisma.Decimal; reservedQty: Prisma.Decimal }) => Promise<{ currentQty: Prisma.Decimal; reservedQty: Prisma.Decimal }>,
+              tx: { inventory: { findUnique: () => Promise<{ currentQty: Prisma.Decimal; reservedQty: Prisma.Decimal; version: number }>; updateMany: (args: unknown) => Promise<{ count: number }> } },
+            ) => {
+              const before = await tx.inventory.findUnique();
+              const after = await operation(before);
+              await tx.inventory.updateMany({
+                where: { id: _inventoryId, version: before.version },
+                data: {
+                  currentQty: after.currentQty,
+                  reservedQty: after.reservedQty,
+                  version: { increment: 1 },
+                },
+              });
+              return { before, after, version: before.version + 1 };
+            }),
+          },
+        },
         { provide: DomainEventBusService, useValue: { publish: jest.fn().mockResolvedValue(undefined) } },
       ],
     }).compile();
@@ -84,7 +114,7 @@ describe('InventoryPipelineService', () => {
 
     expect(result.inventoryReserved).toHaveLength(1);
     expect(result.refrigeratorDeducted).toHaveLength(0);
-    expect(tx.inventory.update).toHaveBeenCalled();
+    expect(tx.inventory.updateMany).toHaveBeenCalled();
     expect(tx.stockReservation.create).toHaveBeenCalled();
     expect(tx.stockLedger.create).toHaveBeenCalled();
   });
@@ -154,7 +184,7 @@ describe('InventoryPipelineService', () => {
     const result = await service.confirm('order-1', 'cafe-1', tx);
 
     expect(result.inventoryConfirmed).toHaveLength(1);
-    expect(tx.inventory.update).toHaveBeenCalled();
+    expect(tx.inventory.updateMany).toHaveBeenCalled();
     expect(tx.stockReservation.update).toHaveBeenCalledWith({ where: { id: 'res-1' }, data: { status: 'CONFIRMED', confirmedAt: expect.any(Date) } });
     expect(tx.inventoryConsumption.create).toHaveBeenCalled();
     expect(tx.stockLedger.create).toHaveBeenCalled();
@@ -194,7 +224,7 @@ describe('InventoryPipelineService', () => {
 
     expect(result.inventoryReleased).toHaveLength(1);
     expect(result.inventoryReleased[0].action).toBe('release_active');
-    expect(tx.inventory.update).toHaveBeenCalled();
+    expect(tx.inventory.updateMany).toHaveBeenCalled();
     expect(tx.stockReservation.update).toHaveBeenCalledWith({ where: { id: 'res-1' }, data: { status: 'RELEASED', releasedAt: expect.any(Date) } });
   });
 
@@ -216,7 +246,7 @@ describe('InventoryPipelineService', () => {
     expect(result.inventoryReleased).toHaveLength(1);
     expect(result.inventoryReleased[0].action).toBe('restore_confirmed');
     // stock should go back up: 800 + 200 = 1000
-    expect(tx.inventory.update).toHaveBeenCalled();
+    expect(tx.inventory.updateMany).toHaveBeenCalled();
   });
 
   // ── EDGE CASES ──
@@ -275,7 +305,9 @@ describe('InventoryPipelineService', () => {
         findUnique: jest.fn()
           // First call: reserve reads current stock
           .mockResolvedValueOnce({ currentQty: new Prisma.Decimal(1000), reservedQty: new Prisma.Decimal(0), version: 1, cafeId: 'cafe-1', itemName: 'Coffee Beans', unit: 'g', costPerUnit: new Prisma.Decimal(5) })
-          // Second call: release reads stock with reservedQty=200
+          // Second call: retry reads the inventory for reservation.
+          .mockResolvedValueOnce({ currentQty: new Prisma.Decimal(1000), reservedQty: new Prisma.Decimal(0), version: 1, cafeId: 'cafe-1', itemName: 'Coffee Beans', unit: 'g', costPerUnit: new Prisma.Decimal(5) })
+          // Third call: release reads stock with reservedQty=200.
           .mockResolvedValueOnce({ currentQty: new Prisma.Decimal(1000), reservedQty: new Prisma.Decimal(200), version: 2, cafeId: 'cafe-1', itemName: 'Coffee Beans' }),
         update: jest.fn().mockResolvedValue({}),
       },
@@ -303,7 +335,7 @@ describe('InventoryPipelineService', () => {
   });
 
   it('[R2] Reserve → Confirm → Release (Create → Confirm → Cancel): restores currentQty', async () => {
-    // Track which phase we're in: 1=reserve inventory.findUnique, 2=confirm inventory.findUnique, 3=release inventory.findUnique
+    // Each integrity operation reads inventory in addition to the initial reservation lookup.
     let findUniqueCount = 0;
     // Track which phase we're in for findMany: 0=initial, 1=confirm's findMany, 2=release's findMany
     let findManyCount = 0;
@@ -324,7 +356,8 @@ describe('InventoryPipelineService', () => {
         findUnique: jest.fn().mockImplementation(() => {
           findUniqueCount++;
           if (findUniqueCount === 1) return { currentQty: new Prisma.Decimal(1000), reservedQty: new Prisma.Decimal(0), version: 1, cafeId: 'cafe-1', itemName: 'Coffee Beans', unit: 'g', costPerUnit: new Prisma.Decimal(5) };
-          if (findUniqueCount === 2) return { currentQty: new Prisma.Decimal(1000), reservedQty: new Prisma.Decimal(500), version: 2, cafeId: 'cafe-1' };
+          if (findUniqueCount === 2) return { currentQty: new Prisma.Decimal(1000), reservedQty: new Prisma.Decimal(0), version: 1, cafeId: 'cafe-1', itemName: 'Coffee Beans' };
+          if (findUniqueCount === 3) return { currentQty: new Prisma.Decimal(1000), reservedQty: new Prisma.Decimal(500), version: 2, cafeId: 'cafe-1', itemName: 'Coffee Beans' };
           return { currentQty: new Prisma.Decimal(500), reservedQty: new Prisma.Decimal(0), version: 3, cafeId: 'cafe-1', itemName: 'Coffee Beans' };
         }),
         update: jest.fn().mockResolvedValue({}),
@@ -401,8 +434,8 @@ describe('InventoryPipelineService', () => {
 
     const result = await service.release('order-1', tx);
     expect(result.inventoryReleased).toHaveLength(1);
-    // The inventory.update with version lock was called
-    expect(tx.inventory.update).toHaveBeenCalledWith(
+    // The inventory.updateMany with version lock was called.
+    expect(tx.inventory.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: 'inv-1', version: 5 }),
       }),
