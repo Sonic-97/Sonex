@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { DomainEventBusService, DomainEventTypes } from '../domain-events';
+import { DomainEventBusService } from '../domain-events/domain-event-bus.service';
+import { DomainEventTypes } from '../domain-events/domain-event.registry';
 
 const DEFAULT_EXPIRY_MINUTES = 30;
 

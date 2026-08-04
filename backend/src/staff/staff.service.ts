@@ -1,7 +1,8 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { DomainEventBusService, DomainEventTypes } from '../domain-events';
+import { DomainEventBusService } from '../domain-events/domain-event-bus.service';
+import { DomainEventTypes } from '../domain-events/domain-event.registry';
 import { AuditService } from '../audit/audit.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';

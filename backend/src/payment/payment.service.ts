@@ -2,7 +2,8 @@ import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nest
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { DomainEventBusService, DomainEventTypes } from '../domain-events';
+import { DomainEventBusService } from '../domain-events/domain-event-bus.service';
+import { DomainEventTypes } from '../domain-events/domain-event.registry';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AppEvent } from '../events/events.service';
 import { AuditService } from '../audit/audit.service';

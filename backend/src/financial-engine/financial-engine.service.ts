@@ -2,7 +2,8 @@ import { Injectable, Logger, NotFoundException, ForbiddenException, BadRequestEx
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { DomainEventBusService, DomainEventTypes } from '../domain-events';
+import { DomainEventBusService } from '../domain-events/domain-event-bus.service';
+import { DomainEventTypes } from '../domain-events/domain-event.registry';
 import { AuditService } from '../audit/audit.service';
 import { InventoryPipelineService } from '../inventory-pipeline/inventory-pipeline.service';
 import {
