@@ -31,7 +31,7 @@ import { StaffPurchaseModule } from './staff-purchase/staff-purchase.module';
 import { SmartFollowupModule } from './smart-followup/smart-followup.module';
 import { CustomerLearningModule } from './customer-learning/customer-learning.module';
 import { AiWaiterModule } from './ai-waiter/ai-waiter.module';
-import { PaymentModule } from './payment/payment.module';
+import { PaymentModule } from './payment-runtime/payment.module';
 import { ProductManagementModule } from './product-management/product-management.module';
 import { PushNotificationModule } from './push/push-notification.module';
 import { ClosingModule } from './closing/closing.module';

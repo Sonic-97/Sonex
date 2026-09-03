@@ -4,7 +4,7 @@ import { OrderOrchestratorService } from '../order-orchestrator/order-orchestrat
 import { InventoryService } from '../inventory/inventory.service';
 import { MerchantCommunicationService } from '../merchant-communication/merchant-communication.service';
 import { DriverDispatchService } from '../driver-dispatch/driver-dispatch.service';
-import { PaymentService } from '../payment/payment.service';
+import { PaymentService } from '../payment-runtime/payment.service';
 
 function createPlan(overrides: Record<string, unknown> = {}): any {
   return {

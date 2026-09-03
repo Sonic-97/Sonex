@@ -1,0 +1,31 @@
+import { AggregateRoot, Entity, type Instant, type TenantId } from '../shared-kernel';
+import type { AvailabilitySnapshotId, PromiseDecision } from '../availability';
+import type { InventoryItemId, StorageLocationId } from '../inventory-core';
+import type { ReservationAuthorization, ReservationDomainEvent, ReservationEventName } from './reservation.contracts';
+import { reservationInvariant } from './reservation.errors';
+import type { ReservationAllocationId, ReservationId, ReservationLifecycleId, ReservationRequestId } from './reservation.types';
+import { ReservationExpiry, ReservationQuantity, ReservationReason, ReservationReference, ReservationStatus, ReservationToken } from './reservation.value-objects';
+
+const event = (name: ReservationEventName, tenantId: TenantId, reservationId: ReservationId, occurredAt: Instant): ReservationDomainEvent => ({ name, payload: { tenantId: String(tenantId), reservationId: String(reservationId), occurredAt: String(occurredAt) } });
+export class ReservationRequest extends Entity<ReservationRequestId> { constructor(id: ReservationRequestId, public readonly itemId: InventoryItemId, public readonly storageLocationId: StorageLocationId, public readonly quantity: ReservationQuantity, public readonly reference: ReservationReference, public readonly token: ReservationToken) { super(id); Object.freeze(this); } }
+export class ReservationLifecycle extends Entity<ReservationLifecycleId> { constructor(id: ReservationLifecycleId, public readonly status: ReservationStatus) { super(id); Object.freeze(this); } }
+export class ReservationAllocation extends Entity<ReservationAllocationId> { constructor(id: ReservationAllocationId, public readonly availabilitySnapshotId: AvailabilitySnapshotId, public readonly decision: PromiseDecision, public readonly authorizedAt: Instant) { super(id); Object.freeze(this); } }
+
+export class Reservation extends AggregateRoot<ReservationId, ReservationDomainEvent> {
+  private statusValue = ReservationStatus.from('REQUESTED');
+  private expiryValue: ReservationExpiry;
+  private allocationValue?: ReservationAllocation;
+  private cancelReason?: ReservationReason;
+  private constructor(public readonly tenantId: TenantId, id: ReservationId, public readonly request: ReservationRequest, expiry: ReservationExpiry) { super(id); this.expiryValue = expiry; }
+  static create(tenantId: TenantId, id: ReservationId, request: ReservationRequest, expiry: ReservationExpiry, occurredAt: Instant): Reservation { const reservation = new Reservation(tenantId, id, request, expiry); reservation.record(event('ReservationCreated', tenantId, id, occurredAt)); return reservation; }
+  get status(): ReservationStatus { return this.statusValue; } get expiry(): ReservationExpiry { return this.expiryValue; } get allocation(): ReservationAllocation | undefined { return this.allocationValue; } get reason(): ReservationReason | undefined { return this.cancelReason; }
+  authorize(authorization: ReservationAuthorization, availabilitySnapshotId: AvailabilitySnapshotId): void { this.assertStatus('REQUESTED'); if (!authorization.decision.canPromise) reservationInvariant('RESERVATION_NOT_AUTHORIZED', 'Availability did not approve the requested promise'); if (authorization.decision.capacity.unit !== this.request.quantity.unit || authorization.decision.capacity.decimal().compare(this.request.quantity.decimal()) < 0) reservationInvariant('RESERVATION_DECISION_INCONSISTENT', 'Availability decision does not cover the immutable reservation quantity'); this.allocationValue = new ReservationAllocation(authorization.allocationId, availabilitySnapshotId, authorization.decision, authorization.authorizedAt); this.statusValue = ReservationStatus.from('AUTHORIZED'); this.incrementVersion(); this.record(event('ReservationAuthorized', this.tenantId, this.id, authorization.authorizedAt)); }
+  confirm(at: Instant): void { this.expireIfNeeded(at); this.assertStatus('AUTHORIZED'); this.statusValue = ReservationStatus.from('CONFIRMED'); this.incrementVersion(); this.record(event('ReservationConfirmed', this.tenantId, this.id, at)); }
+  cancel(reason: ReservationReason, at: Instant): void { this.assertActive(); this.statusValue = ReservationStatus.from('CANCELLED'); this.cancelReason = reason; this.incrementVersion(); this.record(event('ReservationCancelled', this.tenantId, this.id, at)); }
+  expire(at: Instant): void { if (this.statusValue.value === 'EXPIRED') return; if (this.statusValue.value === 'RELEASED' || this.statusValue.value === 'CANCELLED') reservationInvariant('RESERVATION_STATE_TERMINAL', 'Terminal reservation cannot expire'); if (!this.expiryValue.isExpired(at)) reservationInvariant('RESERVATION_NOT_EXPIRED', 'Reservation expiry has not been reached'); this.statusValue = ReservationStatus.from('EXPIRED'); this.incrementVersion(); this.record(event('ReservationExpired', this.tenantId, this.id, at)); }
+  extend(expiry: ReservationExpiry, at: Instant): void { this.expireIfNeeded(at); this.assertStatus('AUTHORIZED'); if (String(expiry.at) <= String(this.expiryValue.at)) reservationInvariant('RESERVATION_EXPIRY_EXTENSION_INVALID', 'Reservation expiry must be extended forward'); this.expiryValue = expiry; this.incrementVersion(); }
+  release(reason: ReservationReason, at: Instant): void { this.assertStatus('CONFIRMED'); this.statusValue = ReservationStatus.from('RELEASED'); this.cancelReason = reason; this.incrementVersion(); this.record(event('ReservationReleased', this.tenantId, this.id, at)); }
+  private expireIfNeeded(at: Instant): void { if (this.expiryValue.isExpired(at) && (this.statusValue.value === 'REQUESTED' || this.statusValue.value === 'AUTHORIZED' || this.statusValue.value === 'CONFIRMED')) { this.statusValue = ReservationStatus.from('EXPIRED'); this.incrementVersion(); this.record(event('ReservationExpired', this.tenantId, this.id, at)); } }
+  private assertStatus(expected: ReservationStatus['value']): void { if (this.statusValue.value !== expected) reservationInvariant('RESERVATION_TRANSITION_ILLEGAL', `Reservation transition requires ${expected}`); }
+  private assertActive(): void { if (this.statusValue.value === 'RELEASED' || this.statusValue.value === 'CANCELLED' || this.statusValue.value === 'EXPIRED') reservationInvariant('RESERVATION_STATE_TERMINAL', 'Terminal reservation cannot be modified'); }
+}

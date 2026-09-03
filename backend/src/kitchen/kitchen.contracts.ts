@@ -1,0 +1,18 @@
+import type { Command, DeepReadonly, DomainEvent, Instant, Query, TenantId } from '../shared-kernel';
+import type { ConfirmedOrderSnapshot } from '../commerce';
+import type { AuthorizedProductionSpecification } from '../inventory-core';
+import type { KitchenTicketId, PreparationTaskId } from './kitchen.types';
+import type { KitchenReason, PreparationPriority, StationId } from './kitchen.value-objects';
+export type KitchenEventName = 'KitchenTicketCreated' | 'StationAssigned' | 'PreparationStarted' | 'PreparationPaused' | 'PreparationResumed' | 'PreparationStepCompleted' | 'KitchenTicketCompleted' | 'KitchenTicketCancelled' | 'KitchenPriorityChanged';
+export type KitchenDomainEvent = DomainEvent<KitchenEventName, Readonly<Record<string, string>> & { readonly tenantId: string; readonly ticketId: string; readonly occurredAt: string }>;
+export type CreateKitchenTicket = Command<'KITCHEN_CREATE_TICKET', { readonly ticketId: KitchenTicketId; readonly order: ConfirmedOrderSnapshot; readonly specification: AuthorizedProductionSpecification; readonly priority: PreparationPriority }>;
+export type AssignStation = Command<'KITCHEN_ASSIGN_STATION', { readonly ticketId: KitchenTicketId; readonly taskId: PreparationTaskId; readonly stationId: StationId }>;
+export type StartPreparation = Command<'KITCHEN_START', { readonly ticketId: KitchenTicketId }>;
+export type PausePreparation = Command<'KITCHEN_PAUSE', { readonly ticketId: KitchenTicketId; readonly reason: KitchenReason }>;
+export type ResumePreparation = Command<'KITCHEN_RESUME', { readonly ticketId: KitchenTicketId }>;
+export type CompleteStep = Command<'KITCHEN_COMPLETE_STEP', { readonly ticketId: KitchenTicketId; readonly taskId: PreparationTaskId }>;
+export type CompleteTicket = Command<'KITCHEN_COMPLETE_TICKET', { readonly ticketId: KitchenTicketId }>;
+export type CancelTicket = Command<'KITCHEN_CANCEL', { readonly ticketId: KitchenTicketId; readonly reason: KitchenReason }>;
+export type ReprioritizeTicket = Command<'KITCHEN_REPRIORITIZE', { readonly ticketId: KitchenTicketId; readonly priority: PreparationPriority }>;
+export type KitchenBoardQuery = Query<'KITCHEN_BOARD', Record<string, never>>; export type KitchenTicketStatusQuery = Query<'KITCHEN_TICKET_STATUS', { readonly ticketId: KitchenTicketId }>; export type StationQueueQuery = Query<'KITCHEN_STATION_QUEUE', { readonly stationId: StationId }>; export type ProductionTimelineQuery = Query<'KITCHEN_TIMELINE', { readonly ticketId: KitchenTicketId }>; export type StationMetricsQuery = Query<'KITCHEN_STATION_METRICS', { readonly stationId: StationId }>; export type KitchenMetricsQuery = Query<'KITCHEN_METRICS', Record<string, never>>;
+export type ProductionSnapshot = DeepReadonly<{ readonly order: ConfirmedOrderSnapshot; readonly specification: AuthorizedProductionSpecification }>;

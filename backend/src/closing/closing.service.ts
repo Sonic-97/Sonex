@@ -1,7 +1,7 @@
 import { Injectable, Logger, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { PaymentService } from '../payment/payment.service';
+import { PaymentService } from '../payment-runtime/payment.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()

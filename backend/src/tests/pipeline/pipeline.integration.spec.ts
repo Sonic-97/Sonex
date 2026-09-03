@@ -6,7 +6,7 @@ import { OrderOrchestratorService } from '../../order-orchestrator/order-orchest
 import { InventoryService } from '../../inventory/inventory.service';
 import { MerchantCommunicationService } from '../../merchant-communication/merchant-communication.service';
 import { DriverDispatchService } from '../../driver-dispatch/driver-dispatch.service';
-import { PaymentService } from '../../payment/payment.service';
+import { PaymentService } from '../../payment-runtime/payment.service';
 import { AiCommerceDecision, CommerceContext, CustomerContext, CatalogContext, ActiveOrderContext, ConversationContext, BusinessContext } from '../../commerce-brain/commerce-brain.types';
 
 // ── Test Data Factories ──

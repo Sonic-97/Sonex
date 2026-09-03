@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EventsModule } from '../events/events.module';
-import { PaymentModule } from '../payment/payment.module';
+import { PaymentModule } from '../payment-runtime/payment.module';
 import { ClosingController } from './closing.controller';
 import { ClosingService } from './closing.service';
 

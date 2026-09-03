@@ -1,0 +1,1 @@
+import type { AggregateRepository } from '../shared-kernel'; import type { KitchenTicket } from './kitchen.aggregates'; import type { KitchenTicketId } from './kitchen.types'; export interface KitchenTicketRepository extends AggregateRepository<KitchenTicket, KitchenTicketId> {}
