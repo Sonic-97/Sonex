@@ -72,8 +72,8 @@ export default function AuthPage() {
               <p className="mt-3 text-sm leading-7 text-[#74685d]">نظام تشغيل ذكي لإدارة الكافيهات، مصمم لقرارات أسرع وتشغيل أكثر وضوحًا.</p>
             </div>
             <form onSubmit={(event) => { event.preventDefault(); void handleLogin(); }} className="space-y-5">
-              <InputField id="cafe-code" label="رمز الكافيه" icon={<KeyRound className="h-4 w-4" />}>
-                <input id="cafe-code" required value={cafeCode} onChange={(event) => setCafeCode(event.target.value)} placeholder="COF-12345" className="auth-input font-mono" dir="ltr" autoComplete="organization" />
+              <InputField id="cafe-code" label="رمز الكافيه (أو اسم الكافيه)" icon={<KeyRound className="h-4 w-4" />}>
+                <input id="cafe-code" required value={cafeCode} onChange={(event) => setCafeCode(event.target.value)} placeholder="مثال: COF-12345 أو اسم الكافيه" className="auth-input" dir="auto" autoComplete="organization" />
               </InputField>
               <InputField id="username" label="اسم المستخدم أو البريد الإلكتروني أو الهاتف" icon={<UserRound className="h-4 w-4" />}>
                 <input id="username" required value={username} onChange={(event) => setUsername(event.target.value)} placeholder="أدخل بيانات حسابك" className="auth-input" dir="ltr" autoComplete="username" />

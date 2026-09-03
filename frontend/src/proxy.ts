@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose';
 
 const publicRoutes = ['/auth', '/', '/403', '/landing', '/register'];
 const JWT_ACCESS_SECRET = new TextEncoder().encode(
-  process.env.JWT_ACCESS_SECRET || 'sonic-coffee-access-secret-change-in-production',
+  process.env.JWT_ACCESS_SECRET || 'dev-access-secret-change-me-32-chars-minimum',
 );
 
 interface JwtPayload {

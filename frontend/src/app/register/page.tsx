@@ -67,6 +67,10 @@ export default function RegisterWizardPage() {
     try {
       const response = await api.post<SuccessData>('/auth/register', { ownerName, email, phone, password, cafeName, address, category });
       setSuccessData(response.data);
+      if (typeof window !== 'undefined' && response.data?.cafeCode) {
+        sessionStorage.setItem('sonic_cafe_code', response.data.cafeCode);
+        sessionStorage.setItem('sonic_cafe_name', response.data.cafeName);
+      }
       setStep(3);
     } catch (caughtError: unknown) {
       const responseError = caughtError as { response?: { data?: { message?: string | string[] } } };

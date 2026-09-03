@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PDFParse } from 'pdf-parse';
 import { ParsedProduct } from '../interfaces/menu-import.interface';
 import { Normalizer } from '../normalizer.service';
 
@@ -12,8 +11,9 @@ export class PdfParser {
   async parse(buffer: Buffer, fileName: string): Promise<ParsedProduct[]> {
     this.logger.log(`Parsing PDF: ${fileName} (${buffer.length} bytes)`);
 
-    let textResult: import('pdf-parse').TextResult;
+    let textResult: any;
     try {
+      const { PDFParse } = require('pdf-parse');
       const doc = new PDFParse({ data: buffer });
       const info = await doc.getInfo();
       this.logger.log(`PDF loaded: ${info.pages.length} page(s)`);

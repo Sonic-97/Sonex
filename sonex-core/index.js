@@ -304,13 +304,56 @@ switch (platform) {
 }
 
 if (!nativeBinding) {
-  if (loadError) {
-    throw loadError
-  }
-  throw new Error(`Failed to load native binding`)
+  // Pure JS fallback when native addon binary is not precompiled for current platform
+  const computeProductCost = (ingredients, packaging, product_cost, cost_percent) => {
+    let ingredient_cost = (!ingredients || ingredients.length === 0)
+      ? (product_cost || 0)
+      : ingredients.reduce((sum, ing) => {
+          const waste_multiplier = 1.0 + (ing.waste_percent || 0) / 100.0;
+          return sum + (ing.quantity || 0) * waste_multiplier * (ing.cost_per_unit || 0);
+        }, 0);
+    let packaging_cost = (packaging || []).reduce((sum, p) => sum + (p.quantity || 0) * (p.cost_per_unit || 0), 0);
+    return (ingredient_cost + packaging_cost) * ((cost_percent || 0) / 100.0);
+  };
+
+  const computeCostBreakdown = (input) => {
+    const ingredient_cost = (input.ingredients || []).reduce((sum, i) => sum + (i.quantity || 0) * (i.cost_per_unit || 0), 0);
+    const labor_cost_per_product = (input.total_orders > 0 && input.total_items_sold > 0)
+      ? (input.total_labor_cost / input.total_orders) * (input.product_order_count / Math.max(input.total_items_sold, 1))
+      : 0;
+    const operational_cost_per_product = (input.total_items_sold > 0) ? (input.total_operational_expenses * 0.5) / input.total_items_sold : 0;
+    const utility_cost_per_product = (input.total_items_sold > 0) ? input.total_utility_cost / input.total_items_sold : 0;
+    const misc_cost_per_product = (input.total_items_sold > 0) ? (input.total_operational_expenses * 0.5) / input.total_items_sold : 0;
+    const estimated_cost = ingredient_cost + labor_cost_per_product + operational_cost_per_product + utility_cost_per_product + misc_cost_per_product;
+    const estimated_profit = input.selling_price - estimated_cost;
+    const profit_margin = input.selling_price > 0 ? (estimated_profit / input.selling_price) * 100 : 0;
+    const round2 = (v) => Math.round(v * 100) / 100;
+    return {
+      product_id: input.product_id,
+      product_name: input.product_name,
+      selling_price: input.selling_price,
+      estimated_cost: round2(estimated_cost),
+      estimated_profit: round2(estimated_profit),
+      profit_margin: round2(profit_margin),
+      ingredient_cost: round2(ingredient_cost),
+      ingredient_breakdown: input.ingredients,
+      labor_cost: round2(labor_cost_per_product),
+      labor_details: {
+        total_labor_cost_period: round2(input.total_labor_cost),
+        total_orders_in_period: input.total_orders,
+        product_order_count: input.product_order_count,
+      },
+      operational_cost: round2(operational_cost_per_product),
+      utility_cost: round2(utility_cost_per_product),
+      miscellaneous_cost: round2(misc_cost_per_product),
+      date_range: { from: input.date_from, to: input.date_to }
+    };
+  };
+
+  module.exports.computeProductCost = computeProductCost;
+  module.exports.computeCostBreakdown = computeCostBreakdown;
+} else {
+  const { computeProductCost, computeCostBreakdown } = nativeBinding;
+  module.exports.computeProductCost = computeProductCost;
+  module.exports.computeCostBreakdown = computeCostBreakdown;
 }
-
-const { computeProductCost, computeCostBreakdown } = nativeBinding
-
-module.exports.computeProductCost = computeProductCost
-module.exports.computeCostBreakdown = computeCostBreakdown

@@ -110,13 +110,22 @@ export class AuthService {
   }
 
   async tenantLogin(cafeCode: string, username: string, password: string) {
-    const cafe = await this.prisma.cafe.findUnique({
-      where: { cafeCode },
+    const cleanCafeCode = (cafeCode || '').trim();
+    const cleanUsername = (username || '').trim();
+
+    const cafe = await this.prisma.cafe.findFirst({
+      where: {
+        OR: [
+          { cafeCode: { equals: cleanCafeCode, mode: 'insensitive' } },
+          { ownerCode: { equals: cleanCafeCode, mode: 'insensitive' } },
+          { name: { equals: cleanCafeCode, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true, name: true, active: true, cafeCode: true },
     });
 
     if (!cafe) {
-      throw new UnauthorizedException('رمز الكافيه غير صحيح');
+      throw new UnauthorizedException('رمز أو اسم الكافيه غير صحيح');
     }
     if (!cafe.active) {
       throw new UnauthorizedException('هذا الكافيه غير نشط حالياً');
@@ -126,9 +135,9 @@ export class AuthService {
       where: {
         cafeId: cafe.id,
         OR: [
-          { email: username },
-          { phone: username },
-          { loginCode: username },
+          { email: { equals: cleanUsername, mode: 'insensitive' } },
+          { phone: cleanUsername },
+          { loginCode: { equals: cleanUsername, mode: 'insensitive' } },
         ],
       },
     });
@@ -174,8 +183,15 @@ export class AuthService {
   }
 
   async verifyCafeCode(ownerCode: string) {
-    const cafe = await this.prisma.cafe.findUnique({
-      where: { ownerCode },
+    const cleanCode = (ownerCode || '').trim();
+    const cafe = await this.prisma.cafe.findFirst({
+      where: {
+        OR: [
+          { ownerCode: { equals: cleanCode, mode: 'insensitive' } },
+          { cafeCode: { equals: cleanCode, mode: 'insensitive' } },
+          { name: { equals: cleanCode, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true, name: true, active: true },
     });
 
@@ -185,8 +201,15 @@ export class AuthService {
   }
 
   async verifyCafe(ownerCode: string, password: string) {
-    const cafe = await this.prisma.cafe.findUnique({
-      where: { ownerCode },
+    const cleanCode = (ownerCode || '').trim();
+    const cafe = await this.prisma.cafe.findFirst({
+      where: {
+        OR: [
+          { ownerCode: { equals: cleanCode, mode: 'insensitive' } },
+          { cafeCode: { equals: cleanCode, mode: 'insensitive' } },
+          { name: { equals: cleanCode, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true, name: true, ownerPassword: true, phone: true, active: true },
     });
 
