@@ -2,7 +2,6 @@ import { Global, Module } from '@nestjs/common';
 import { DomainEventBusService } from './domain-event-bus.service';
 import { EventsModule } from '../events/events.module';
 import { QueueModule } from '../queue/queue.module';
-import { InventorySubscriber } from './subscribers/inventory.subscriber';
 import { AnalyticsSubscriber } from './subscribers/analytics.subscriber';
 import { AISubscriber } from './subscribers/ai.subscriber';
 import { NotificationsSubscriber } from './subscribers/notifications.subscriber';
@@ -16,7 +15,6 @@ import { DesktopSyncSubscriber } from './subscribers/desktop-sync.subscriber';
   imports: [EventsModule, QueueModule.forRoot()],
   providers: [
     DomainEventBusService,
-    InventorySubscriber,
     AnalyticsSubscriber,
     AISubscriber,
     NotificationsSubscriber,

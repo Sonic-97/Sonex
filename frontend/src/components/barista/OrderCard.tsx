@@ -7,7 +7,7 @@ import { updateOrderStatus } from '@/lib/api';
 import { Clock, Coffee, Utensils, DollarSign } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 const NEXT_ACTION: Record<OrderStatus, { label: string; next: OrderStatus; color: string } | null> = {
   NEW: { label: 'Confirm Order', next: 'CONFIRMED', color: 'bg-blue-600 hover:bg-blue-700' },

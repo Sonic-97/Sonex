@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   PresenceEvent, PresenceEventType,
@@ -13,7 +13,7 @@ export class DriverPresenceService {
 
   constructor(
     private readonly prisma: PrismaService,
-    config?: Partial<PresenceConfig>,
+    @Optional() config?: Partial<PresenceConfig>,
   ) {
     this.config = { ...DEFAULT_PRESENCE_CONFIG, ...config };
   }

@@ -94,6 +94,7 @@ export default function OwnerClosingPage() {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<Tab>('debts');
   const [payingId, setPayingId] = useState<string | null>(null);
+  const [actualCashInput, setActualCashInput] = useState<string>('');
 
   const fetchData = useCallback(async () => {
     try {
@@ -208,71 +209,117 @@ export default function OwnerClosingPage() {
 
       {/* Tab: Daily Closing */}
       {tab === 'closing' && data && (
-        <div className="grid gap-4 sm:grid-cols-3">
-          {/* Revenue */}
-          <div className="rounded-xl border bg-white p-5">
-            <div className="flex items-center gap-2 text-green-600 text-sm font-medium mb-3">
-              <TrendingUp className="h-4 w-4" /> الإيرادات
-            </div>
-            <p className="text-3xl font-bold text-green-700">{formatCurrency(data.revenue.totalRevenue)}</p>
-            <p className="text-xs text-gray-500 mt-1">{data.revenue.totalOrders} طلب مدفوع</p>
-            <div className="mt-3 max-h-32 overflow-y-auto space-y-1">
-              {data.revenue.orders.slice(0, 10).map((o) => (
-                <div key={o.orderId} className="flex justify-between text-xs text-gray-600">
-                  <span className="font-mono">{o.orderCode}</span>
-                  <span>{formatCurrency(o.amount)}</span>
+        <div className="space-y-4">
+          {/* Physical Cash Reconciliation Card */}
+          <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl p-5 border border-slate-700 shadow-md">
+            <h3 className="text-base font-bold flex items-center gap-2 mb-2 text-amber-400">
+              💵 المطابقة النقدية الفعلية (Cash Drawer Reconciliation)
+            </h3>
+            <p className="text-xs text-slate-300 mb-4">
+              أدخل النقدية الفعلية الموجودة بالدرج الآن لاحتساب العجز أو الزيادة آلياً.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
+              <div>
+                <span className="text-xs text-slate-400">النقدية المتوقعة بالخزينة</span>
+                <div className="text-xl font-black text-emerald-400">
+                  {formatCurrency(data.revenue.totalCollected - data.expenses.total)}
                 </div>
-              ))}
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-300 font-bold mb-1">النقدية الفعلية (العد اليدوي):</label>
+                <input
+                  type="number"
+                  placeholder="أدخل المبلغ الفعلي..."
+                  value={actualCashInput}
+                  onChange={(e) => setActualCashInput(e.target.value)}
+                  className="w-full bg-slate-950 text-amber-400 px-3 py-2 rounded-lg border border-slate-700 font-black text-lg focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              {actualCashInput !== '' && (
+                <div className="bg-slate-950/80 p-3 rounded-lg border border-slate-700">
+                  <span className="text-xs text-slate-400">نتيجة المطابقة:</span>
+                  {(() => {
+                    const expected = data.revenue.totalCollected - data.expenses.total;
+                    const actual = parseFloat(actualCashInput) || 0;
+                    const diff = actual - expected;
+                    if (diff === 0) return <div className="text-emerald-400 font-black text-lg">✅ مطابق تماماً (0 عجز)</div>;
+                    if (diff > 0) return <div className="text-blue-400 font-black text-lg">📈 زيادة: +{formatCurrency(diff)}</div>;
+                    return <div className="text-red-400 font-black text-lg">⚠️ عجز: {formatCurrency(diff)}</div>;
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Expenses */}
-          <div className="rounded-xl border bg-white p-5">
-            <div className="flex items-center gap-2 text-red-600 text-sm font-medium mb-3">
-              <TrendingDown className="h-4 w-4" /> المصروفات
-            </div>
-            <p className="text-3xl font-bold text-red-700">{formatCurrency(data.expenses.total)}</p>
-            <div className="mt-3 space-y-1 text-xs">
-              <div className="flex justify-between text-gray-600">
-                <span>الرواتب ({data.earnings.staff.length} موظف)</span>
-                <span>{formatCurrency(data.expenses.salaries)}</span>
+          <div className="grid gap-4 sm:grid-cols-3">
+            {/* Revenue */}
+            <div className="rounded-xl border bg-white p-5">
+              <div className="flex items-center gap-2 text-green-600 text-sm font-medium mb-3">
+                <TrendingUp className="h-4 w-4" /> الإيرادات
               </div>
-              <div className="flex justify-between text-gray-600">
-                <span>مشتريات المخزون</span>
-                <span>{formatCurrency(data.expenses.inventoryPurchases)}</span>
-              </div>
-              <div className="flex justify-between text-gray-600">
-                <span>مدفوعات الموظفين</span>
-                <span>{formatCurrency(data.expenses.employeePayments)}</span>
+              <p className="text-3xl font-bold text-green-700">{formatCurrency(data.revenue.totalRevenue)}</p>
+              <p className="text-xs text-gray-500 mt-1">{data.revenue.totalOrders} طلب مدفوع</p>
+              <div className="mt-3 max-h-32 overflow-y-auto space-y-1">
+                {data.revenue.orders.slice(0, 10).map((o) => (
+                  <div key={o.orderId} className="flex justify-between text-xs text-gray-600">
+                    <span className="font-mono">{o.orderCode}</span>
+                    <span>{formatCurrency(o.amount)}</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
 
-          {/* Profit */}
-          <div className={`rounded-xl border p-5 ${data.profit >= 0 ? 'bg-white' : 'bg-red-50 border-red-200'}`}>
-            <div className="flex items-center gap-2 text-violet-600 text-sm font-medium mb-3">
-              <Wallet className="h-4 w-4" /> صافي الربح
+            {/* Expenses */}
+            <div className="rounded-xl border bg-white p-5">
+              <div className="flex items-center gap-2 text-red-600 text-sm font-medium mb-3">
+                <TrendingDown className="h-4 w-4" /> المصروفات
+              </div>
+              <p className="text-3xl font-bold text-red-700">{formatCurrency(data.expenses.total)}</p>
+              <div className="mt-3 space-y-1 text-xs">
+                <div className="flex justify-between text-gray-600">
+                  <span>الرواتب ({data.earnings.staff.length} موظف)</span>
+                  <span>{formatCurrency(data.expenses.salaries)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>مشتريات المخزون</span>
+                  <span>{formatCurrency(data.expenses.inventoryPurchases)}</span>
+                </div>
+                <div className="flex justify-between text-gray-600">
+                  <span>مدفوعات الموظفين</span>
+                  <span>{formatCurrency(data.expenses.employeePayments)}</span>
+                </div>
+              </div>
             </div>
-            <p className={`text-3xl font-bold ${data.profit >= 0 ? 'text-violet-700' : 'text-red-700'}`}>
-              {data.profit >= 0 ? '' : '-'}{formatCurrency(Math.abs(data.profit))}
-            </p>
-            <p className="text-xs text-gray-500 mt-1">
-              {data.profit >= 0 ? 'إغلاق إيجابي' : 'خسارة هذه الفترة'}
-            </p>
-            <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
-              <div className="flex justify-between">
-                <span>الإيرادات</span>
-                <span className="text-green-600">+{formatCurrency(data.revenue.totalRevenue)}</span>
+
+            {/* Profit */}
+            <div className={`rounded-xl border p-5 ${data.profit >= 0 ? 'bg-white' : 'bg-red-50 border-red-200'}`}>
+              <div className="flex items-center gap-2 text-violet-600 text-sm font-medium mb-3">
+                <Wallet className="h-4 w-4" /> صافي الربح
               </div>
-              <div className="flex justify-between">
-                <span>المصروفات</span>
-                <span className="text-red-600">-{formatCurrency(data.expenses.total)}</span>
-              </div>
-              <div className="flex justify-between font-semibold mt-1 pt-1 border-t border-gray-100">
-                <span>صافي</span>
-                <span className={data.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
-                  {data.profit >= 0 ? '+' : ''}{data.profit.toFixed(2)}
-                </span>
+              <p className={`text-3xl font-bold ${data.profit >= 0 ? 'text-violet-700' : 'text-red-700'}`}>
+                {data.profit >= 0 ? '' : '-'}{formatCurrency(Math.abs(data.profit))}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                {data.profit >= 0 ? 'إغلاق إيجابي' : 'خسارة هذه الفترة'}
+              </p>
+              <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-500">
+                <div className="flex justify-between">
+                  <span>الإيرادات</span>
+                  <span className="text-green-600">+{formatCurrency(data.revenue.totalRevenue)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>المصروفات</span>
+                  <span className="text-red-600">-{formatCurrency(data.expenses.total)}</span>
+                </div>
+                <div className="flex justify-between font-semibold mt-1 pt-1 border-t border-gray-100">
+                  <span>صافي</span>
+                  <span className={data.profit >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    {data.profit >= 0 ? '+' : ''}{data.profit.toFixed(2)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

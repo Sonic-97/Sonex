@@ -7,6 +7,9 @@ import driverApi from '@/lib/driver-api';
 import AssignmentCard from '@/components/driver/AssignmentCard';
 import LocationIndicator from '@/components/driver/LocationIndicator';
 
+import { useSocket } from '@/hooks/useSocket';
+import { useAudio } from '@/hooks/useAudio';
+
 interface Assignment {
   assignmentId: string;
   merchantName: string;
@@ -31,6 +34,10 @@ export default function DriverHomePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Connect to live Socket namespace for drivers
+  useSocket('/driver');
+  useAudio();
+
   const fetchData = useCallback(async () => {
     try {
       const [assignRes, profileRes] = await Promise.all([
@@ -48,7 +55,7 @@ export default function DriverHomePage() {
 
   useEffect(() => {
     fetchData();
-    const iv = setInterval(fetchData, 30000);
+    const iv = setInterval(fetchData, 10000); // 10s fallback interval
     return () => clearInterval(iv);
   }, [fetchData]);
 

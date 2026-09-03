@@ -8,9 +8,10 @@ import { OrderStatusService } from './order-status.service';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { ProductManagementModule } from '../product-management/product-management.module';
 import { CustomerLearningModule } from '../customer-learning/customer-learning.module';
+import { InventoryPipelineModule } from '../inventory-pipeline/inventory-pipeline.module';
 
 @Module({
-  imports: [PrismaModule, InventoryModule, MessagesModule, WhatsappModule, ProductManagementModule, CustomerLearningModule],
+  imports: [PrismaModule, InventoryModule, MessagesModule, WhatsappModule, ProductManagementModule, CustomerLearningModule, InventoryPipelineModule],
   controllers: [OrdersController],
   providers: [OrdersService, OrderStatusService],
   exports: [OrdersService],

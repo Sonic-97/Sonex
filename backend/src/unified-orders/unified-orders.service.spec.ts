@@ -14,6 +14,7 @@ import { Prisma } from '@prisma/client';
 import { InventoryPipelineService } from '../inventory-pipeline/inventory-pipeline.service';
 import { FinancialEngineService } from '../financial-engine/financial-engine.service';
 import { DomainEventBusService } from '../domain-events';
+import { TransactionalOutboxService } from '../outbox/application/transactional-outbox.service';
 
 // ── Pure unit tests for OrderStatusMachine ──
 describe('OrderStatusMachine', () => {
@@ -232,6 +233,7 @@ describe('UnifiedOrdersService', () => {
         { provide: FinancialEngineService, useValue: { createFinancialTransaction: jest.fn().mockResolvedValue(undefined), confirmRevenueInTx: jest.fn().mockResolvedValue(undefined) } },
         { provide: CustomerLearningService, useValue: { learn: jest.fn().mockResolvedValue(undefined) } },
         { provide: DomainEventBusService, useValue: { publish: jest.fn().mockResolvedValue(undefined) } },
+        { provide: TransactionalOutboxService, useValue: { publishEventWithinTransaction: jest.fn().mockResolvedValue({ isSuccess: true, value: { eventId: 'outbox-1' } }) } },
       ],
     }).compile();
 

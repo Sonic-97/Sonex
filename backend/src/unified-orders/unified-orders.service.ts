@@ -13,6 +13,7 @@ import { CustomerLearningService } from '../customer-learning/customer-learning.
 import { OrderStatusMachine } from './order-status-machine.service';
 import { OrderItemsService, ItemInput } from './order-items.service';
 import { OrderPaymentService } from './order-payment.service';
+import { TransactionalOutboxService } from '../outbox/application/transactional-outbox.service';
 import { CreateUnifiedOrderDto, UnifiedChannel, UnifiedSource, UnifiedOrderType, UnifiedPaymentStatus } from './dto/create-unified-order.dto';
 import { UpdateUnifiedOrderStatusDto, UnifiedFulfillmentStatus, UnifiedCancelStatus } from './dto/update-order-status.dto';
 import { RecordPaymentDto } from './dto/payment.dto';
@@ -36,6 +37,7 @@ export class UnifiedOrdersService {
     private readonly statusMachine: OrderStatusMachine,
     private readonly orderItemsService: OrderItemsService,
     private readonly orderPaymentService: OrderPaymentService,
+    private readonly transactionalOutbox: TransactionalOutboxService,
   ) {}
 
   // ── CREATE ORDER (all channels) ──
@@ -208,6 +210,24 @@ export class UnifiedOrdersService {
       // Record idempotency
       if (dto.idempotencyKey) {
         await this.idempotencyService.record('unified_order', dto.idempotencyKey, 'UnifiedOrder', created.id, 'completed', cafeId, tx);
+      }
+
+      const outboxResult = await this.transactionalOutbox.publishEventWithinTransaction(tx, {
+        tenantId: cafeId,
+        branchId: targetBranchId,
+        aggregateType: 'UNIFIED_ORDER',
+        aggregateId: created.id,
+        eventType: 'OrderCreated',
+        payload: {
+          orderId: created.id,
+          code: created.code,
+          grandTotal: created.grandTotal.toString(),
+          channel: created.channel,
+          source: created.source,
+        },
+      });
+      if (!outboxResult.isSuccess) {
+        throw new Error(outboxResult.error);
       }
 
       return created;

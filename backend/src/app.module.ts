@@ -90,6 +90,13 @@ import { MenuImportModule } from './menu-import/menu-import.module';
 import { PricingModule } from './pricing/pricing.module';
 import { AdapterPlatformModule } from './adapter-platform/adapter-platform.module';
 import { ProductResolutionModule } from './product-resolution/product-resolution.module';
+import { DeliveryManagementModule } from './delivery-management/delivery-management.module';
+import { RunningAccountModule } from './running-account/running-account.module';
+import { RecipeBOMModule } from './recipe-bom/recipe-bom.module';
+import { BossPilotModule } from './boss-pilot/boss-pilot.module';
+import { AIExecutiveModule } from './ai-executive/ai-executive.module';
+import { MultiBranchConsolidationModule } from './financial-consolidation/financial-consolidation.module';
+import { TransactionalOutboxModule } from './outbox/transactional-outbox.module';
 @Module({
   imports: [
     AuditModule,
@@ -177,6 +184,13 @@ import { ProductResolutionModule } from './product-resolution/product-resolution
     PricingModule,
     AdapterPlatformModule,
     ProductResolutionModule,
+    DeliveryManagementModule,
+    RunningAccountModule,
+    RecipeBOMModule,
+    BossPilotModule,
+    AIExecutiveModule,
+    MultiBranchConsolidationModule,
+    TransactionalOutboxModule,
   ],
   controllers: [AppController],
   providers: [AppService, OrderBuilderService, MenuService, LocalizationService, TenantContextService],

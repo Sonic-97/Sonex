@@ -5,6 +5,8 @@ import { AuditModule } from '../audit/audit.module';
 import { CommonModule } from '../common/common.module';
 import { InventoryModule } from '../inventory/inventory.module';
 import { CustomerLearningModule } from '../customer-learning/customer-learning.module';
+import { InventoryPipelineModule } from '../inventory-pipeline/inventory-pipeline.module';
+import { TransactionalOutboxModule } from '../outbox/transactional-outbox.module';
 import { UnifiedOrdersService } from './unified-orders.service';
 import { OrderStatusMachine } from './order-status-machine.service';
 import { OrderItemsService } from './order-items.service';
@@ -18,6 +20,8 @@ import { OrderPaymentService } from './order-payment.service';
     CommonModule,
     InventoryModule,
     CustomerLearningModule,
+    InventoryPipelineModule,
+    TransactionalOutboxModule,
   ],
   providers: [
     UnifiedOrdersService,

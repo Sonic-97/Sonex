@@ -147,7 +147,7 @@ export function OrderManagementModal({ order, onClose, onOrderUpdated }: Props) 
     handleAction('assign', { customerName, customerPhone: customerPhone || undefined, customerId: customerId || undefined });
   };
 
-  const TABS: Array<{ key: Tab; label: string; icon: any }> = [
+  const TABS: Array<{ key: Tab; label: string; icon: any; disabled?: boolean }> = [
     { key: 'actions', label: 'إجراءات', icon: ExternalLink },
     { key: 'edit', label: 'تعديل', icon: Pen, disabled: !canEdit },
     { key: 'history', label: 'سجل', icon: History },

@@ -1,0 +1,14 @@
+{
+  "title": "Products",
+  "add": "Add Product",
+  "edit": "Edit Product",
+  "delete": "Delete Product",
+  "name": "Name",
+  "price": "Price",
+  "category": "Category",
+  "active": "Active",
+  "inactive": "Inactive",
+  "cost": "Cost",
+  "profit": "Profit",
+  "noProducts": "No products found"
+}
