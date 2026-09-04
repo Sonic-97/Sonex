@@ -1,0 +1,129 @@
+﻿name: Sonex Cloud CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop/canonical-baseline ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Core Integrity & Automated Tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: cafe_test_db
+          POSTGRES_USER: cafe_user
+          POSTGRES_PASSWORD: cafe_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: npm ci --ignore-scripts
+
+      - name: Generate Prisma Client
+        working-directory: ./backend
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://cafe_user:cafe_password@localhost:5432/cafe_test_db?schema=public
+
+      - name: Run TypeScript Typecheck
+        working-directory: ./backend
+        run: npx tsc --noEmit
+
+      - name: Run Core Domain Tests (Costing & Specs)
+        working-directory: ./backend
+        run: npx jest scenario-runner.spec.ts
+        env:
+          DATABASE_URL: postgresql://cafe_user:cafe_password@localhost:5432/cafe_test_db?schema=public
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_ACCESS_SECRET: dev-access-secret-change-me-32-chars-minimum
+          JWT_REFRESH_SECRET: dev-refresh-secret-change-me-32-chars-minimum
+
+      - name: Run Financial & Inventory Tests
+        working-directory: ./backend
+        run: npx jest financial-engine.service.spec.ts inventory-pipeline.service.spec.ts
+        env:
+          DATABASE_URL: postgresql://cafe_user:cafe_password@localhost:5432/cafe_test_db?schema=public
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          JWT_ACCESS_SECRET: dev-access-secret-change-me-32-chars-minimum
+          JWT_REFRESH_SECRET: dev-refresh-secret-change-me-32-chars-minimum
+
+  docker-build:
+    name: Build & Verify Docker Images
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Backend Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./backend/Dockerfile
+          push: false
+          tags: sonex-backend:latest
+
+      - name: Build Frontend Container
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: false
+          tags: sonex-frontend:latest
+
+  deploy:
+    name: Auto Deploy to Production VPS
+    needs: [test, docker-build]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && vars.SSH_HOST != ''
+
+    steps:
+      - name: Trigger Remote Deployment via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ vars.SSH_HOST }}
+          username: ${{ vars.SSH_USER || 'root' }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /opt/sonex-coffee || exit 1
+            git pull origin main
+            chmod +x deploy.sh
+            ./deploy.sh
