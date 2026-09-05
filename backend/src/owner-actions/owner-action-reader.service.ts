@@ -271,6 +271,24 @@ export class OwnerActionReaderService {
       };
     }
 
+    if (actionType === 'RECORD_STOCK_WASTE') {
+      const itemName = String(proposedState.itemName || 'Inventory Item');
+      const quantity = Number(proposedState.quantity || 0);
+      const unit = String(proposedState.unit || 'piece');
+      const reason = String(proposedState.reason || 'هالك / عجز مخزون');
+      return {
+        resource: { type: 'StockWaste', id: resourceId, name: `هالك: ${itemName} (${quantity} ${unit})` },
+        currentState: { recorded: false },
+        impact: {
+          financial: 'Loss recorded in stock waste tracking; inventory balances adjusted downward.',
+          operational: `Deducts ${quantity} ${unit} from "${itemName}" with reason: ${reason}.`,
+          whatWillNotChange: ['Historical sales', 'Order records'],
+        },
+        warnings: ['Stock reduction is recorded immediately upon approval.'],
+        branchNames,
+      };
+    }
+
     return this.draftSnapshot(actionType, branchNames, proposedState);
   }
 

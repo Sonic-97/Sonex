@@ -5,13 +5,13 @@ import { OWNER_ACTION_TYPES } from './owner-action.types';
 describe('Stage 6 versioned owner action evaluation dataset', () => {
   const policy = new OwnerActionPolicyService();
 
-  it('has a stable version and the required twenty scenarios', () => {
+  it('has a stable version and the required domain scenarios', () => {
     expect(OWNER_ACTION_EVALUATION_DATASET_VERSION).toBe('stage-6-actions-v1');
-    expect(OWNER_ACTION_EVALUATION_CASES).toHaveLength(20);
+    expect(OWNER_ACTION_EVALUATION_CASES).toHaveLength(35);
   });
 
   it('uses unique case ids', () => {
-    expect(new Set(OWNER_ACTION_EVALUATION_CASES.map((testCase) => testCase.id)).size).toBe(20);
+    expect(new Set(OWNER_ACTION_EVALUATION_CASES.map((testCase) => testCase.id)).size).toBe(35);
   });
 
   it.each(OWNER_ACTION_EVALUATION_CASES)('$id has deterministic safety metadata', (testCase) => {

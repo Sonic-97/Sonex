@@ -28,7 +28,7 @@ import {
   OwnerActionUser,
 } from './owner-action.types';
 
-const BLOCKED_REQUEST = /(refund|settlement|payroll|permission|password|secret|token|sql|delete customer|delete transaction|رد\s*مبلغ|تسوي(?:ة|ه)|مرتبات|رواتب|صلاحيات|كلمة\s*مرور|توكن|احذف\s*(?:عميل|معاملة)|شطب\s*دين|رصيد\s*عميل)/i;
+const BLOCKED_REQUEST = /(refund|settlement|permission|password|secret|token|sql|delete customer|delete transaction|رد\s*مبلغ|تسوي(?:ة|ه)|رواتب|صلاحيات|كلمة\s*مرور|توكن|احذف\s*(?:عميل|معاملة)|شطب\s*دين|رصيد\s*عميل)/i;
 const PROMPT_INJECTION = /(ignore .*approval|bypass .*approval|arbitrary sql|any cafeid|اعتبرني المالك|تجاهل .*الموافق|نفذ .*فور|استخدم أي cafeid|غير صلاحيات|اطبع .*توكن)/i;
 const AMBIGUOUS_APPROVAL = /^(تمام|ماشي|أوكي|اوكي|ok|okay|كمل|خلصها|اعمل اللي شايفه)$/i;
 
@@ -280,19 +280,48 @@ export class OwnerActionsService {
     }
 
     const branchId = requestBranchId || user.branchId || undefined;
-    if ((text.includes('سعر') || text.includes('price')) && /(زود|زيادة|غير|غيّر|اجعل|خفض|قلل|increase|raise|change|update|set)/i.test(text)) {
+
+    // 1. Price Updates (عدل سعر الشاي خليه 25 بدل 20 / زود الكابتشينو 5 جنيه / خلي الشيشة تفاح بـ 60)
+    if (
+      ((text.includes('سعر') || text.includes('price')) && /(زود|زيادة|غير|غيّر|عدل|عدّل|اجعل|خلي|خلّي|خفض|قلل|نزل|increase|raise|change|update|set)/i.test(text)) ||
+      (/(خلي|خلّي|اجعل|عدل|عدّل)\s+.*?(?:بـ|بسعر|ب)\s*\d+/i.test(text)) ||
+      (/(زود|زيادة|خفض|قلل|نزل)\s+.*?\s*\d+\s*(?:جنيه|ج)/i.test(text))
+    ) {
       const product = await this.findProduct(user.cafeId!, text);
-      const amount = this.firstNumber(text);
-      if (!product || amount == null) return this.clarification('Specify the existing product and the exact price or change amount.');
+      if (!product) return this.clarification('يرجى تحديد الصنف الموجود في المنيو لتعديل سعره (مثال: زود سعر اللاتيه 5 جنيه).');
+
       const branchPrice = branchId ? await this.prisma.branchProduct.findFirst({ where: { cafeId: user.cafeId!, branchId, productId: product.id }, select: { price: true } }) : null;
       const currentPrice = branchPrice ? Number(branchPrice.price) : Number(product.price);
-      const incremental = /(زود|زيادة|increase|raise)/i.test(text);
-      const proposedPrice = incremental ? currentPrice + amount : amount;
+
+      let proposedPrice: number | null = null;
+      const explicitNewMatch = text.match(/(?:خليه|خلّيه|اجعله|ليكون|لـ|بـ|بسعر|ب)\s*(\d+(?:\.\d+)?)(?:\s+بدل|\s+بدلاً)?/i);
+      const incMatch = text.match(/(?:زود|زيادة|ارفع|increase|raise)\s+(?:سعر\s+)?(?:[\p{L}\p{N}\s]+?)?(\d+(?:\.\d+)?)/iu);
+      const decMatch = text.match(/(?:خفض|قلل|نزل|decrease|lower)\s+(?:سعر\s+)?(?:[\p{L}\p{N}\s]+?)?(\d+(?:\.\d+)?)/iu);
+
+      if (explicitNewMatch && explicitNewMatch[1]) {
+        proposedPrice = Number(explicitNewMatch[1]);
+      } else if (incMatch && incMatch[1]) {
+        proposedPrice = currentPrice + Number(incMatch[1]);
+      } else if (decMatch && decMatch[1]) {
+        proposedPrice = Math.max(1, currentPrice - Number(decMatch[1]));
+      } else {
+        const num = this.firstNumber(text);
+        if (num != null) proposedPrice = num;
+      }
+
+      if (proposedPrice == null || proposedPrice <= 0) {
+        return this.clarification(`يرجى تحديد السعر الجديد للصنف "${product.name}" بدقة.`);
+      }
+
       const proposal = await this.prepare(user, {
-        actionType: 'UPDATE_PRODUCT_PRICE', branchId, resourceId: product.id,
-        proposedState: { price: proposedPrice }, reason: ownerMessage, requestedText: ownerMessage,
+        actionType: 'UPDATE_PRODUCT_PRICE',
+        branchId,
+        resourceId: product.id,
+        proposedState: { price: round(proposedPrice) },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
       }, 'COPILOT');
-      return this.prepared(proposal);
+      return this.prepared(proposal, `تم تجهيز تعديل سعر "${product.name}" من ${currentPrice} ج.م إلى ${round(proposedPrice)} ج.م. راجع واعتمد لتطبيق السعر فوراً.`);
     }
 
     if (/(غير متاح|وقف|عطل|disable|unavailable|enable|متاح)/i.test(text) && /(منتج|product|متاح|available)/i.test(text)) {
@@ -317,19 +346,98 @@ export class OwnerActionsService {
       return this.prepared(proposal);
     }
 
-    if (/(مصروف|expense)/i.test(text) && /(سجل|انشئ|create|record)/i.test(text)) {
-      const amount = this.firstNumber(text);
-      const paymentMethod = /(كاش|cash)/i.test(text) ? 'CASH' : /(بطاقة|كارت|card)/i.test(text) ? 'CARD' : null;
-      const category = this.expenseCategory(text);
-      if (!branchId || amount == null || !paymentMethod || !category || text.length < 12) {
-        return this.clarification('Expense proposals need branch, amount, category, payment method, date, and a clear description.');
+    // 2. Stock Waste & Inventory Discrepancies (سجل هالك 2 كيلو بن باظوا / عجز ربع كيلو شاي في الجرد)
+    if (/(هالك|باظ|باظوا|تلف|تالف|عجز|عجز جرد|منتهي الصلاحية|ارميهم هالك|إتلاف|اتلاف)/i.test(text)) {
+      const invItem = await this.findInventory(user.cafeId!, text, branchId);
+      const qtyMatch = text.match(/(\d+(?:\.\d+)?)\s*(كيلو|كجم|ك|kg|علبة|علب|كانز|كرتونة|كراتين|لتر|جرام|جم|قطعة|باكت)?/i);
+      let quantity = qtyMatch && qtyMatch[1] ? Number(qtyMatch[1]) : this.firstNumber(text);
+
+      if (text.includes('نص كيلو') || text.includes('نصف كيلو')) quantity = 0.5;
+      else if (text.includes('ربع كيلو')) quantity = 0.25;
+
+      if (!invItem || quantity == null || quantity <= 0) {
+        return this.clarification('يرجى تحديد صنف المخزن والكمية التالفة أو الهالكة (مثال: سجل هالك 2 كيلو بن أو عجز نص كيلو شاي).');
       }
+
+      const rawUnit = qtyMatch && qtyMatch[2] ? qtyMatch[2].trim() : 'piece';
+      let unit = 'piece';
+      if (/(كيلو|كجم|ك|kg)/i.test(rawUnit)) unit = 'kg';
+      else if (/(جرام|جم)/i.test(rawUnit)) unit = 'g';
+      else if (/(لتر)/i.test(rawUnit)) unit = 'liter';
+      else if (/(علبة|علب|كانز)/i.test(rawUnit)) unit = 'can';
+
+      const reason = /(عجز|جرد)/i.test(text) ? 'عجز جرد المخزن' : 'هالك وتلف خامات';
+
       const proposal = await this.prepare(user, {
-        actionType: 'CREATE_APPROVED_EXPENSE', branchId,
-        proposedState: { amount, category, paymentMethod, expenseDate: new Date().toISOString(), description: ownerMessage.trim() },
-        reason: ownerMessage, requestedText: ownerMessage,
+        actionType: 'RECORD_STOCK_WASTE',
+        branchId,
+        resourceId: invItem.id,
+        proposedState: {
+          itemName: invItem.itemName,
+          quantity: round(quantity),
+          unit,
+          reason,
+        },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
       }, 'COPILOT');
-      return this.prepared(proposal);
+      return this.prepared(proposal, `تم تجهيز تسجيل هالك/عجز مخزون بقيمة ${quantity} ${unit} من صنف "${invItem.itemName}" بسبب (${reason}). راجع واعتمد لخصمها من الرصيد فوراً.`);
+    }
+
+    // 3. Staff Advances (سلفة للباريستا أحمد 200 جنيه كاش / ادي سلف لأحمد 500)
+    if (/(سلف|سلفة|سلفه)/i.test(text)) {
+      const amount = this.firstNumber(text);
+      if (!amount || amount <= 0) {
+        return this.clarification('يرجى تحديد مبلغ السلفة واسم الموظف (مثال: سلفة للباريستا أحمد 200 جنيه كاش من الدرج).');
+      }
+      const paymentMethod = /(فيزا|كارت|تحويل)/i.test(text) ? 'CARD' : 'CASH';
+      const staffMatch = ownerMessage.match(/(?:للباريستا|للموظف|للكابتن|لـ|ل|سلفة\s+)([^\d,،\n]+?)(?:\s+\d+|\s+مبلغ|\s+كاش)/i);
+      const staffName = staffMatch && staffMatch[1] ? staffMatch[1].trim() : 'موظف';
+      const desc = `سلفة موظف (${staffName}) - ${ownerMessage.trim()}`.slice(0, 200);
+
+      const proposal = await this.prepare(user, {
+        actionType: 'CREATE_APPROVED_EXPENSE',
+        branchId,
+        proposedState: {
+          amount: round(amount),
+          category: 'سلف موظفين',
+          paymentMethod,
+          expenseDate: new Date().toISOString(),
+          description: desc,
+        },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
+      }, 'COPILOT');
+      return this.prepared(proposal, `تم تجهيز سلفة بقيمة ${round(amount)} ج.م للموظف (${staffName}) خصماً من الخزينة (${paymentMethod === 'CASH' ? 'كاش من الدرج' : 'كارت'}). راجع واعتمد لقيد السلفة.`);
+    }
+
+    // 4. Cafe Operational Expenses & Maintenance (صرفت 150 سباكة / صيانة ماكينة القهوة 300 كاش / فاتورة كهرباء)
+    if (
+      (/(مصروف|expense)/i.test(text) && /(سجل|انشئ|create|record|صرفت|دفعت)/i.test(text)) ||
+      (/(صرفت|دفعت|فاتورة|فواتير|صيانة|سباكة|سباكه|نظافة|ايجار|إيجار)/i.test(text) && /\d+/.test(text))
+    ) {
+      const amount = this.firstNumber(text);
+      const paymentMethod = /(فيزا|كارت|card|bank|تحويل)/i.test(text) ? 'CARD' : 'CASH';
+      const category = this.expenseCategory(text) || 'مصروفات تشغيلية';
+
+      if (!branchId || amount == null || amount <= 0) {
+        return this.clarification('يرجى توضيح بند المصروف والمبلغ بدقة (مثال: صرفت 150 جنيه سباكة من الدرج أو فاتورة كهرباء 750 جنيه).');
+      }
+
+      const proposal = await this.prepare(user, {
+        actionType: 'CREATE_APPROVED_EXPENSE',
+        branchId,
+        proposedState: {
+          amount: round(amount),
+          category,
+          paymentMethod,
+          expenseDate: new Date().toISOString(),
+          description: ownerMessage.trim(),
+        },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
+      }, 'COPILOT');
+      return this.prepared(proposal, `تم تجهيز تسجيل مصروف بقيمة ${round(amount)} ج.م تحت تصنيف "${category}" (${paymentMethod === 'CASH' ? 'كاش من الدرج' : 'بالبطاقة'}). راجع واعتمد لتسجيل القيد.`);
     }
 
     if (/(عرض|خصم|offer|combo)/i.test(text)) {
@@ -511,6 +619,14 @@ export class OwnerActionsService {
         if (quantity <= 0) throw new BadRequestException('Proposed quantity must be positive.');
         return { ...input, quantity: round(quantity) };
       }
+      case 'RECORD_STOCK_WASTE': {
+        const quantity = this.finiteNumber(input.quantity, 'quantity');
+        if (quantity <= 0) throw new BadRequestException('Wasted quantity must be positive.');
+        const itemName = String(input.itemName || '').trim();
+        const reason = String(input.reason || 'هالك / عجز مخزون').trim();
+        const unit = String(input.unit || 'piece').trim();
+        return { itemName, quantity: round(quantity), unit, reason };
+      }
       case 'CREATE_OFFER_DRAFT': {
         const discountPercent = this.finiteNumber(input.discountPercent, 'discountPercent');
         const proposedPrice = this.finiteNumber(input.proposedPrice, 'proposedPrice');
@@ -626,6 +742,8 @@ export class OwnerActionsService {
       return Math.abs(Number(proposal.proposedState.price) - Number(proposal.currentState.price));
     }
     if (proposal.actionType === 'CREATE_APPROVED_EXPENSE') return Number(proposal.proposedState.amount) || 0;
+    if (proposal.actionType === 'RECORD_INVENTORY_PURCHASE') return Number(proposal.proposedState.totalAmount) || 0;
+    if (proposal.actionType === 'RECORD_STOCK_WASTE') return Number(proposal.proposedState.quantity) || 0;
     return 0;
   }
 
@@ -640,9 +758,23 @@ export class OwnerActionsService {
   private async findProduct(cafeId: string, text: string): Promise<{ id: string; name: string; price: unknown } | null> {
     const products = await this.prisma.product.findMany({ where: { cafeId }, select: { id: true, name: true, price: true } });
     const normalized = this.normalizeText(text);
-    return products
+
+    // 1. Direct substring match
+    let match = products
       .filter((product) => normalized.includes(this.normalizeText(product.name)))
-      .sort((a, b) => b.name.length - a.name.length)[0] ?? null;
+      .sort((a, b) => b.name.length - a.name.length)[0];
+    if (match) return match;
+
+    // 2. Definite article stripping (الـ)
+    const cleanWord = (w: string) => this.normalizeText(w).replace(/^(ال|لل)/, '').trim();
+    match = products
+      .filter((product) => {
+        const prodClean = cleanWord(product.name);
+        return prodClean.length >= 2 && (normalized.includes(prodClean) || cleanWord(normalized).includes(prodClean));
+      })
+      .sort((a, b) => b.name.length - a.name.length)[0];
+
+    return match ?? null;
   }
 
   private async findInventory(cafeId: string, text: string, branchId?: string): Promise<{ id: string; itemName: string } | null> {
@@ -667,8 +799,20 @@ export class OwnerActionsService {
   }
 
   private expenseCategory(text: string): string | null {
+    const norm = this.normalizeText(text);
+    if (/(سباك|سباكة|سباكه)/i.test(norm)) return 'صيانة ومرافق';
+    if (/(صيانة|تصليح|صيانه)/i.test(norm)) return 'صيانة ومرافق';
+    if (/(نظافة|منظفات|أدوات نظافة)/i.test(norm)) return 'نظافة ومستهلكات';
+    if (/(كهرباء|فاتورة كهرباء|الكهربا)/i.test(norm)) return 'كهرباء ومرافق';
+    if (/(مياه|فاتورة مياه|الميه)/i.test(norm)) return 'مياه ومرافق';
+    if (/(ايجار|إيجار)/i.test(norm)) return 'إيجار';
+    if (/(سلف|سلفة|سلفه)/i.test(norm)) return 'سلف موظفين';
+    if (/(نقل|شحن|مواصلات|بنزين)/i.test(norm)) return 'نقل وشحن';
+    if (/(تسويق|إعلان|اعلان|سوشيال)/i.test(norm)) return 'تسويق وإعلانات';
+    if (/(مواد خام|مشتريات|خامات)/i.test(norm)) return 'مواد خام';
+
     const categories = ['كهرباء', 'مياه', 'ايجار', 'إيجار', 'صيانة', 'نقل', 'تسويق', 'مواد خام', 'rent', 'utilities', 'maintenance', 'transport', 'marketing'];
-    return categories.find((category) => text.includes(this.normalizeText(category))) ?? null;
+    return categories.find((category) => norm.includes(this.normalizeText(category))) ?? null;
   }
 
   private finiteNumber(value: unknown, field: string): number {
@@ -714,7 +858,9 @@ export class OwnerActionsService {
     }
 
     let categoryName = 'مشروبات';
-    if (/(بارد|مثلج|ايس|ice|كولد|مفرز)/i.test(norm)) {
+    if (/(شيشة|شيشه|معسل|قص|سلوم)/i.test(norm)) {
+      categoryName = 'شيشة ومعسلات';
+    } else if (/(بارد|مثلج|ايس|ice|كولد|مفرز)/i.test(norm)) {
       categoryName = 'مشروبات باردة';
     } else if (/(كرواسون|كوكيز|دونات|كيك|مخبوز|ساندوتش|فطير|باتيه)/i.test(norm)) {
       categoryName = 'مخبوزات وحلويات';

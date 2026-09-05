@@ -410,6 +410,88 @@ export class OwnerActionExecutorService {
           rollback: { supported: false, metadata: { correctionRequired: true } },
         };
       }
+      case 'RECORD_STOCK_WASTE': {
+        const branchId = proposal.branchIds[0];
+        const itemName = String(proposal.proposedState.itemName || '').trim();
+        const quantity = Number(proposal.proposedState.quantity || 0);
+        const reason = String(proposal.proposedState.reason || 'هالك / عجز مخزون');
+        const affectedRecordIds: string[] = [];
+
+        let invItem = await tx.inventory.findFirst({
+          where: {
+            cafeId: proposal.cafeId,
+            ...(branchId ? { branchId } : {}),
+            itemName: { equals: itemName, mode: 'insensitive' },
+          },
+        });
+
+        if (!invItem && proposal.resource.id) {
+          invItem = await tx.inventory.findFirst({
+            where: {
+              id: proposal.resource.id,
+              cafeId: proposal.cafeId,
+            },
+          });
+        }
+
+        if (!invItem && branchId) {
+          invItem = await tx.inventory.create({
+            data: {
+              cafeId: proposal.cafeId,
+              branchId,
+              itemName,
+              unit: String(proposal.proposedState.unit || 'piece'),
+              currentQty: new Prisma.Decimal(0),
+              minThreshold: new Prisma.Decimal(5),
+              costPerUnit: new Prisma.Decimal(0),
+            },
+          });
+        }
+
+        if (!invItem) {
+          throw new Error(`Inventory item "${itemName}" not found to record waste.`);
+        }
+
+        const balanceBefore = Number(invItem.currentQty);
+        const balanceAfter = Math.max(0, balanceBefore - quantity);
+        const actualDeduction = balanceBefore - balanceAfter;
+
+        const updatedInv = await tx.inventory.update({
+          where: { id: invItem.id },
+          data: {
+            currentQty: new Prisma.Decimal(balanceAfter),
+            version: { increment: 1 },
+          },
+        });
+        affectedRecordIds.push(updatedInv.id);
+
+        const ledger = await tx.stockLedger.create({
+          data: {
+            cafeId: proposal.cafeId,
+            inventoryId: invItem.id,
+            change: new Prisma.Decimal(-quantity),
+            balanceBefore: new Prisma.Decimal(balanceBefore),
+            balanceAfter: new Prisma.Decimal(balanceAfter),
+            reservedBefore: new Prisma.Decimal(0),
+            reservedAfter: new Prisma.Decimal(0),
+            reason: `AI Waste: ${reason} (-${quantity} ${invItem.unit})`,
+          } as any,
+        });
+        affectedRecordIds.push(ledger.id);
+
+        return {
+          verifiedState: {
+            inventoryId: invItem.id,
+            itemName: invItem.itemName,
+            quantityWasted: quantity,
+            balanceBefore,
+            balanceAfter,
+            reason,
+          },
+          affectedRecordIds,
+          rollback: { supported: true, metadata: { inventoryId: invItem.id, restoredQty: quantity } },
+        };
+      }
       default:
         throw new Error(`No approved typed execution tool for ${proposal.actionType}.`);
     }
@@ -425,6 +507,7 @@ export class OwnerActionExecutorService {
       CREATE_APPROVED_EXPENSE: 'createApprovedExpense',
       CREATE_PRODUCT_WITH_RECIPE: 'createApprovedProductWithRecipe',
       RECORD_INVENTORY_PURCHASE: 'recordApprovedInventoryPurchase',
+      RECORD_STOCK_WASTE: 'recordApprovedStockWaste',
     }[proposal.actionType] || 'unsupported';
   }
 
