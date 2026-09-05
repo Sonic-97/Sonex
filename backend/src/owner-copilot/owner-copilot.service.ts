@@ -524,6 +524,17 @@ export class OwnerCopilotService {
         };
       }
       const inventory = data.get(intent.intent === 'OWNER_STOCKOUT_RISK' ? 'getLowStockItems' : 'getInventoryHealth');
+      const matched = inventory.matchedItems || [];
+      if (matched.length > 0) {
+        const first = matched[0];
+        return {
+          directAnswer: `صنف "${first.itemName}" متاح منه ${first.availableQuantity} ${first.unit} في فرع ${first.branchName} (الحد الأدنى ${first.minimumLevel}).`,
+          keyNumbers: matched.slice(0, 5).map((row: any) => this.key(row.itemName, `${number(row.availableQuantity)} ${row.unit}`, 'getInventoryHealth')),
+          why: [`الحالة: ${first.severity === 'LOW' ? 'آمنة وكافية' : first.severity === 'CRITICAL' ? 'حرجة جدًا' : 'أقل من أو قريبة من الحد الأدنى'}.`],
+          warnings,
+          proposalOnly: true,
+        };
+      }
       const critical = inventory.criticalItems || [];
       return {
         directAnswer: critical.length ? `في ${critical.length} صنف مخزون حرج أو أقل من الحد الأدنى.` : 'المخزون المسجل مفيهوش أصناف تحت الحد الأدنى.',
@@ -588,9 +599,19 @@ export class OwnerCopilotService {
 
     if (intent.intent === 'OWNER_PAYMENT_ANALYSIS') {
       const payments = data.get('getPaymentSummary');
+      const isDrawerQuery = /(درج|خزنة|خزنه|كاش|فلوس)/.test(intent.rawQuestion);
+      const directAnswer = isDrawerQuery && payments.estimatedDrawerCash !== undefined
+        ? `صافي الكاش في الدرج حاليًا ${money(payments.estimatedDrawerCash)} (متحصلات نقدية ${money(payments.cashCollected || 0)} - مصروفات وسلف ${money(payments.cashExpenses || 0)}).`
+        : `المدفوعات المحصلة والمسجلة ${money(payments.totalCollected || 0)}.`;
+
       return {
-        directAnswer: `المدفوعات المحصلة والمسجلة ${money(payments.totalCollected || 0)}.`,
-        keyNumbers: (payments.byMethod || []).slice(0, 5).map((row: any) => this.key(row.name, money(row.amount), 'getPaymentSummary')),
+        directAnswer,
+        keyNumbers: [
+          ...(payments.estimatedDrawerCash !== undefined ? [this.key('صافي كاش الدرج', money(payments.estimatedDrawerCash), 'getPaymentSummary')] : []),
+          ...(payments.cashCollected !== undefined ? [this.key('متحصلات نقدية', money(payments.cashCollected), 'getPaymentSummary')] : []),
+          ...(payments.cashExpenses !== undefined && payments.cashExpenses > 0 ? [this.key('مصروفات وسلف الدرج', money(payments.cashExpenses), 'getPaymentSummary')] : []),
+          ...(payments.byMethod || []).slice(0, 3).map((row: any) => this.key(row.name, money(row.amount), 'getPaymentSummary')),
+        ],
         warnings,
       };
     }

@@ -114,4 +114,46 @@ export const OWNER_COPILOT_EVALUATION_DATASET: OwnerCopilotEvaluationCase[] = [
     expectedTools: ['getSalesSummary'], forbiddenTools: [], expectedFacts: ['no write occurred'], forbiddenClaims: ['invented result'],
     acceptableResponseCharacteristics: ['deterministic fallback'], expectedOutcome: 'FALLBACK',
   },
+  {
+    id: 'sales-egyptian-dialect', scenario: 'egyptian dialect sales query', authenticatedContext: { role: 'OWNER', cafeId: 'cafe-1', allowedBranchIds: ['branch-1'] },
+    question: 'عملنا مبيعات كام النهارده؟', expectedIntent: 'OWNER_SALES_SUMMARY', expectedDateRange: { type: 'TODAY' },
+    expectedTools: ['getSalesSummary'], forbiddenTools: [], expectedFacts: ['netSales', 'validOrders'], forbiddenClaims: ['invented numbers'],
+    acceptableResponseCharacteristics: ['egyptian dialect', 'exact numbers'], expectedOutcome: 'ANSWER',
+  },
+  {
+    id: 'profit-egyptian-dialect', scenario: 'egyptian dialect profit query', authenticatedContext: { role: 'OWNER', cafeId: 'cafe-1', allowedBranchIds: ['branch-1'] },
+    question: 'كسبنا كام النهارده؟', expectedIntent: 'OWNER_NET_PROFIT_ANALYSIS', expectedDateRange: { type: 'TODAY' },
+    expectedTools: ['getProfitSummary', 'getExpenseSummary'], forbiddenTools: [], expectedFacts: ['netProfit', 'grossProfit'], forbiddenClaims: ['invented numbers'],
+    acceptableResponseCharacteristics: ['egyptian dialect', 'exact numbers'], expectedOutcome: 'ANSWER',
+  },
+  {
+    id: 'drawer-cash-dialect', scenario: 'egyptian dialect drawer cash query', authenticatedContext: { role: 'OWNER', cafeId: 'cafe-1', allowedBranchIds: ['branch-1'] },
+    question: 'الدرج فيه كام كاش دلوقتي؟', expectedIntent: 'OWNER_PAYMENT_ANALYSIS', expectedDateRange: { type: 'TODAY' },
+    expectedTools: ['getPaymentSummary'], forbiddenTools: [], expectedFacts: ['estimatedDrawerCash', 'cashCollected'], forbiddenClaims: ['invented numbers'],
+    acceptableResponseCharacteristics: ['egyptian dialect', 'exact numbers'], expectedOutcome: 'ANSWER',
+  },
+  {
+    id: 'top-product-dialect', scenario: 'egyptian dialect top product query', authenticatedContext: { role: 'OWNER', cafeId: 'cafe-1', allowedBranchIds: ['branch-1'] },
+    question: 'إيه أكتر صنف بيتباع؟', expectedIntent: 'OWNER_PRODUCT_PERFORMANCE', expectedDateRange: {},
+    expectedTools: ['getProductPerformance'], forbiddenTools: [], expectedFacts: ['rankingBasis', 'topByQuantity'], forbiddenClaims: ['invented numbers'],
+    acceptableResponseCharacteristics: ['egyptian dialect', 'exact numbers'], expectedOutcome: 'ANSWER',
+  },
+  {
+    id: 'inventory-item-dialect', scenario: 'egyptian dialect specific item query', authenticatedContext: { role: 'OWNER', cafeId: 'cafe-1', allowedBranchIds: ['branch-1'] },
+    question: 'فاضل بن قد إيه في المخزن؟', expectedIntent: 'OWNER_INVENTORY_HEALTH', expectedDateRange: { type: 'TODAY' },
+    expectedTools: ['getInventoryHealth'], forbiddenTools: [], expectedFacts: ['matchedItems', 'availableQuantity'], forbiddenClaims: ['invented numbers'],
+    acceptableResponseCharacteristics: ['egyptian dialect', 'exact numbers'], expectedOutcome: 'ANSWER',
+  },
+  {
+    id: 'expense-today-dialect', scenario: 'egyptian dialect expenses query', authenticatedContext: { role: 'OWNER', cafeId: 'cafe-1', allowedBranchIds: ['branch-1'] },
+    question: 'صرفنا كام النهارده؟', expectedIntent: 'OWNER_EXPENSE_ANALYSIS', expectedDateRange: { type: 'TODAY' },
+    expectedTools: ['getExpenseSummary'], forbiddenTools: [], expectedFacts: ['total', 'byCategory'], forbiddenClaims: ['invented numbers'],
+    acceptableResponseCharacteristics: ['egyptian dialect', 'exact numbers'], expectedOutcome: 'ANSWER',
+  },
+  {
+    id: 'waste-dialect', scenario: 'egyptian dialect waste query', authenticatedContext: { role: 'OWNER', cafeId: 'cafe-1', allowedBranchIds: ['branch-1'] },
+    question: 'الهالك كام الأسبوع ده؟', expectedIntent: 'OWNER_WASTE_ANALYSIS', expectedDateRange: { type: 'THIS_WEEK' },
+    expectedTools: ['getWasteMetrics', 'getConsumptionMetrics'], forbiddenTools: [], expectedFacts: ['configuredRecipeWaste'], forbiddenClaims: ['invented numbers'],
+    acceptableResponseCharacteristics: ['egyptian dialect', 'exact numbers'], expectedOutcome: 'ANSWER',
+  },
 ];

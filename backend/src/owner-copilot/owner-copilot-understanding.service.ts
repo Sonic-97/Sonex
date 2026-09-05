@@ -251,28 +251,28 @@ export class OwnerCopilotUnderstandingService {
     if (/(افضل قرار|اعمل ايه النهارده|تنصحني بايه)/.test(text)) return 'OWNER_RECOMMEND_ACTION';
     if (/(نعمل عرض علي ايه|اقترح.*(?:عرض|كومبو)|نزود مبيعات)/.test(text)) return 'OWNER_OFFER_PROPOSAL';
     if (/(قارن الفروع|مقارنه الفروع|مقارنة الفروع|اي فرع|انهي فرع|أيه فرع)/.test(text)) return 'OWNER_BRANCH_COMPARISON';
+    if (/(اعلي ربحيه|اعلى ربحيه|أعلى ربحية|مكسبها ضعيف|هامش.*منتج|ربحيه المنتجات|ربحية المنتجات)/.test(text)) return 'OWNER_PRODUCT_PROFITABILITY';
     if (/(اجمالي الربح|إجمالي الربح|gross profit|هامش الربح الاجمالي)/.test(text)) return 'OWNER_GROSS_PROFIT_ANALYSIS';
-    if (/(صافي الربح|نت بروفت|net profit|الارباح|الأرباح|الربح)/.test(text)) return 'OWNER_NET_PROFIT_ANALYSIS';
-    if (/(المصروفات|مصروفات|expense)/.test(text)) return 'OWNER_EXPENSE_ANALYSIS';
-    if (/(الايراد|الإيراد|الايرادات|revenue)/.test(text)) return 'OWNER_REVENUE_ANALYSIS';
-    if (/(اعلي ربحيه|اعلى ربحيه|أعلى ربحية|مكسبها ضعيف|هامش.*منتج|ربحيه المنتجات)/.test(text)) return 'OWNER_PRODUCT_PROFITABILITY';
-    if (/(اكتر المنتجات|أكثر المنتجات|منتجات.*بتبيع|مش بتبيع|اداء المنتجات|أداء المنتجات)/.test(text)) return 'OWNER_PRODUCT_PERFORMANCE';
+    if (/(صافي الربح|نت بروفت|net profit|الارباح|الأرباح|ارباح|أرباح|الربح|كسبنا|مكسبنا|ربحنا)/.test(text)) return 'OWNER_NET_PROFIT_ANALYSIS';
+    if (/(المصروفات|المصاريف|مصروفات|مصاريف|صرفنا|سلف الموظفين|سلف العمال|expense)/.test(text)) return 'OWNER_EXPENSE_ANALYSIS';
+    if (/(الايراد|الإيراد|ايراد|إيراد|الايرادات|ايرادات|revenue)/.test(text)) return 'OWNER_REVENUE_ANALYSIS';
+    if (/(اكتر المنتجات|أكثر المنتجات|اكتر صنف|اكثر صنف|اكتر مشروب|اكثر مشروب|اكتر حاجة ماشية|اكثر حاجة ماشية|منتجات.*بتبيع|اصناف.*بتبيع|أصناف.*بتبيع|مش بتبيع|مش شغالة|مش شغال|اداء المنتجات|أداء المنتجات|اداء الاصناف|أداء الأصناف)/.test(text)) return 'OWNER_PRODUCT_PERFORMANCE';
     if (/(التصنيفات|الفئات|category)/.test(text)) return 'OWNER_CATEGORY_ANALYSIS';
     if (/(الغاء|إلغاء|ملغيه|ملغية|cancellation)/.test(text)) return 'OWNER_CANCELLATION_ANALYSIS';
-    if (/(الطلبات|عدد الطلبات|متوسط الطلب)/.test(text)) return 'OWNER_ORDER_ANALYSIS';
+    if (/(الطلبات|طلبات|عدد الطلبات|متوسط الطلب)/.test(text)) return 'OWNER_ORDER_ANALYSIS';
     if (/(العملاء العائدين|الاحتفاظ|مبقوش يطلبوا|مش نشطين|retention|churn)/.test(text)) return 'OWNER_CUSTOMER_RETENTION';
-    if (/(العملاء|عميل جديد|عملاء جدد)/.test(text)) return 'OWNER_CUSTOMER_ANALYSIS';
+    if (/(العملاء|عملاء|عميل جديد|عملاء جدد)/.test(text)) return 'OWNER_CUSTOMER_ANALYSIS';
     if (/(هيخلص قريب|هتخلص قريب|تخلص قريب|نفاد|stockout)/.test(text)) return 'OWNER_STOCKOUT_RISK';
-    if (/(هالك|اهدار|إهدار|waste)/.test(text)) return 'OWNER_WASTE_ANALYSIS';
-    if (/(المخزون|الاصناف الحرجه|الأصناف الحرجة|الخامات|ناقص في ايه)/.test(text)) return 'OWNER_INVENTORY_HEALTH';
-    if (/(الحضور|التاخير|التأخير|الورديات)/.test(text)) return 'OWNER_ATTENDANCE_ANALYSIS';
-    if (/(الموظفين|اداء الموظف|أداء الموظف|الباريستا)/.test(text)) return 'OWNER_STAFF_PERFORMANCE';
-    if (/(السواقين|السائقين|التوصيل|driver)/.test(text)) return 'OWNER_DRIVER_ANALYSIS';
-    if (/(الديون|الدين|مديونيه|مديونية)/.test(text)) return 'OWNER_DEBT_ANALYSIS';
-    if (/(التسويات|التسويه|settlement)/.test(text)) return 'OWNER_SETTLEMENT_ANALYSIS';
-    if (/(المدفوعات|طرق الدفع|كاش|فيزا|payment)/.test(text)) return 'OWNER_PAYMENT_ANALYSIS';
+    if (/(هالك|اهدار|إهدار|تلف|تالف|عجز جرد|خسرنا هالك|waste)/.test(text)) return 'OWNER_WASTE_ANALYSIS';
+    if (/(المخزون|مخزون|المخزن|مخزن|الاصناف الحرجه|الأصناف الحرجة|الخامات|خامات|ناقص في ايه|فاضل.*في المخزن|رصيد.*المخزن)/.test(text)) return 'OWNER_INVENTORY_HEALTH';
+    if (/(الحضور|التاخير|التأخير|الورديات|ورديات)/.test(text)) return 'OWNER_ATTENDANCE_ANALYSIS';
+    if (/(الموظفين|موظفين|اداء الموظف|أداء الموظف|الباريستا)/.test(text)) return 'OWNER_STAFF_PERFORMANCE';
+    if (/(السواقين|سواقين|السائقين|سائقين|التوصيل|driver)/.test(text)) return 'OWNER_DRIVER_ANALYSIS';
+    if (/(الديون|ديون|الدين|دين|مديونيه|مديونية)/.test(text)) return 'OWNER_DEBT_ANALYSIS';
+    if (/(التسويات|تسويات|التسويه|تسويه|settlement)/.test(text)) return 'OWNER_SETTLEMENT_ANALYSIS';
+    if (/(المدفوعات|مدفوعات|طرق الدفع|كاش|فيزا|payment|الدرج|الخزنة|الخزنه|فلوس الدرج)/.test(text)) return 'OWNER_PAYMENT_ANALYSIS';
     if (/(وقت الذروه|وقت الذروة|احسن ساعه|أحسن ساعة|peak)/.test(text)) return 'OWNER_PEAK_HOURS';
-    if (/(المبيعات|بيعنا|بعنا|sales)/.test(text)) return 'OWNER_SALES_SUMMARY';
+    if (/(المبيعات|مبيعات|بيعنا|بعنا|عملنا كام|دخلنا كام|بيعنا بكام|دخل كام|sales)/.test(text)) return 'OWNER_SALES_SUMMARY';
     return 'OWNER_UNKNOWN';
   }
 
@@ -286,7 +286,17 @@ export class OwnerCopilotUnderstandingService {
   }
 
   private isWriteAction(text: string): boolean {
-    return /(ضيف|اضف|انشئ|أنشئ|اضافة|إضافة|اعمل صنف|اعمل منتج|اعمل مشروب|اشتريت|شريت|جبت|نزلت جبت|فاتورة شراء|شراء بضاعة|شراء|سعر|price|عدل|عدّل|غير|غيّر|زود|خفض|نزل|خلي|خلّي|اعمل خصم|اعمل عرض|فعل العرض|ابعت رساله|ابعت رسالة|شيل المنتج|عطل المنتج|زود المخزون|مصروف|صرفت|دفعت|فاتورة|فواتير|سباكة|سباكه|صيانة|ايجار|إيجار|سلف|سلفة|سلفه|هالك|باظ|باظوا|تلف|تالف|عجز|عجز جرد|اقفل الورديه|اقفل الوردية|خصم للعميل|عدل المرتب|سجل دفع|اعمل ريفاند|نفذ)/.test(text);
+    const isQuestion = /(?:^|\s)(كام|قد ايه|ايه|إيه|أخبار|اخبار|عاملة ايه|عامل ايه|وريني|اعرض|احسب|هل|ما هو|ما هي)(?:\s|$)/.test(text)
+      || /[؟?]/.test(text);
+
+    const hasExplicitWriteVerb = /(ضيف|اضف|انشئ|أنشئ|اضافة|إضافة|اعمل صنف|اعمل منتج|اعمل مشروب|اشتريت|شريت|جبت|نزلت جبت|فاتورة شراء|شراء بضاعة|سجل شراء|سجل هالك|سجل عجز|سجل مصروف|سجل سلفة|سجل سلفه|صرفت|دفعت|سددت|سباكة|سباكه|صيانة ماكينة|صيانة مكنة|فاتورة كهربا|فاتورة مياه|فاتورة نت|ايجار|إيجار|سلفة ل|سلفه ل|سلفة للباريستا|سلفه للباريستا|باظ|باظوا|عدل|عدّل|غير|غيّر|زود|خفض|نزل|خلي|خلّي|اعمل خصم|اعمل عرض|فعل العرض|ابعت رساله|ابعت رسالة|شيل المنتج|عطل المنتج|زود المخزون|اقفل الورديه|اقفل الوردية|خصم للعميل|عدل المرتب|سجل دفع|اعمل ريفاند|نفذ)/.test(text);
+
+    if (isQuestion) {
+      const strongWriteAction = /(ضيف|اضف|انشئ|أنشئ|اشتريت|شريت|جبت|نزلت جبت|صرفت|دفعت|سددت|باظ|باظوا|سجل هالك|سجل عجز|سجل مصروف|سلفة للباريستا|سلفه للباريستا|عدل سعر|غير سعر|خليه \d+ بدل|خلي \d+ بدل)/.test(text);
+      return strongWriteAction;
+    }
+
+    return hasExplicitWriteVerb;
   }
 
   private requestsComparison(text: string): boolean {

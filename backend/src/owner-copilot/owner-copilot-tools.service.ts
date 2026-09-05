@@ -41,8 +41,8 @@ export class OwnerCopilotToolsService {
       case 'getCancellationMetrics': return this.getCancellationMetrics(scope, range);
       case 'getCustomerMetrics': return this.getCustomerMetrics(scope, range);
       case 'getCustomerRetention': return this.getCustomerRetention(scope, range);
-      case 'getInventoryHealth': return this.getInventoryHealth(scope, range);
-      case 'getLowStockItems': return this.getLowStockItems(scope, range);
+      case 'getInventoryHealth': return this.getInventoryHealth(scope, range, rawQuestion);
+      case 'getLowStockItems': return this.getLowStockItems(scope, range, rawQuestion);
       case 'getConsumptionMetrics': return this.getConsumptionMetrics(scope, range);
       case 'getWasteMetrics': return this.getWasteMetrics(scope, range);
       case 'getBranchComparison': return this.getBranchComparison(scope, range);
@@ -310,7 +310,7 @@ export class OwnerCopilotToolsService {
     }, ['مؤشر عدم النشاط يعني عدم وجود طلب منذ بداية الفترة، وليس توقعًا مؤكدًا بالمغادرة.'], customers.length > MAX_ORDER_FACTS);
   }
 
-  async getInventoryHealth(scope: OwnerCopilotScope, _range: OwnerResolvedDateRange): Promise<OwnerToolResult> {
+  async getInventoryHealth(scope: OwnerCopilotScope, _range: OwnerResolvedDateRange, rawQuestion = ''): Promise<OwnerToolResult> {
     const inventory = await this.prisma.inventory.findMany({
       where: { cafeId: scope.cafeId, branchId: { in: scope.selectedBranchIds } },
       select: {
@@ -338,15 +338,27 @@ export class OwnerCopilotToolsService {
       };
     });
     const critical = rows.filter((row) => row.severity === 'CRITICAL' || row.severity === 'HIGH');
+
+    let matchedItems: typeof rows = [];
+    if (rawQuestion) {
+      const normQ = this.normalizeText(rawQuestion);
+      matchedItems = rows.filter((item) => {
+        const normItem = this.normalizeText(item.itemName);
+        return normQ.includes(normItem) || normItem.includes(normQ);
+      });
+    }
+
     return this.result('getInventoryHealth', {
       totalItems: rows.length,
       criticalItems: critical.slice(0, MAX_RESULT_ITEMS),
       healthyItems: rows.filter((row) => row.severity === 'LOW').length,
+      matchedItems: matchedItems.slice(0, MAX_RESULT_ITEMS),
+      allItems: rows.slice(0, MAX_RESULT_ITEMS),
     }, [], inventory.length > 1000);
   }
 
-  async getLowStockItems(scope: OwnerCopilotScope, range: OwnerResolvedDateRange): Promise<OwnerToolResult> {
-    const health = await this.getInventoryHealth(scope, range);
+  async getLowStockItems(scope: OwnerCopilotScope, range: OwnerResolvedDateRange, rawQuestion = ''): Promise<OwnerToolResult> {
+    const health = await this.getInventoryHealth(scope, range, rawQuestion);
     return { ...health, tool: 'getLowStockItems' };
   }
 
@@ -530,8 +542,29 @@ export class OwnerCopilotToolsService {
       take: MAX_ORDER_FACTS + 1,
     });
     const rows = payments.slice(0, MAX_ORDER_FACTS);
+    const cashCollected = roundMoney(rows.filter((p) => p.method === 'CASH').reduce((sum, payment) => sum + Number(payment.amount), 0));
+    const expenses = await this.prisma.expense.findMany({
+      where: {
+        cafeId: scope.cafeId,
+        branchId: { in: scope.selectedBranchIds },
+        expenseDate: { gte: range.from, lte: range.to },
+        OR: [
+          { expenseType: { contains: 'CASH' } },
+          { expenseType: { contains: 'DRAWER' } },
+          { description: { contains: 'درج' } },
+          { description: { contains: 'كاش' } },
+        ],
+      },
+      select: { amount: true },
+    });
+    const cashExpenses = roundMoney(expenses.reduce((sum, expense) => sum + Number(expense.amount), 0));
+    const estimatedDrawerCash = roundMoney(cashCollected - cashExpenses);
+
     return this.result('getPaymentSummary', {
       totalCollected: roundMoney(rows.reduce((sum, payment) => sum + Number(payment.amount), 0)),
+      cashCollected,
+      cashExpenses,
+      estimatedDrawerCash,
       paymentRecords: rows.length,
       byMethod: this.groupMoney(rows, (payment) => payment.method || 'غير مسجل', (payment) => Number(payment.amount)),
       byBranch: this.groupMoney(rows, (payment) => payment.branch.name, (payment) => Number(payment.amount)),
