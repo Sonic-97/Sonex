@@ -241,6 +241,175 @@ export class OwnerActionExecutorService {
           rollback: { supported: false, metadata: { correctionRequired: true } },
         };
       }
+      case 'CREATE_PRODUCT_WITH_RECIPE': {
+        const branchId = proposal.branchIds[0];
+        const name = String(proposal.proposedState.name);
+        const price = new Prisma.Decimal(Number(proposal.proposedState.price || 0));
+        const cost = new Prisma.Decimal(Number(proposal.proposedState.cost || 0));
+        const categoryName = String(proposal.proposedState.categoryName || 'مشروبات');
+        const ingredients = Array.isArray(proposal.proposedState.ingredients) ? proposal.proposedState.ingredients : [];
+
+        let category = await tx.productCategory.findFirst({
+          where: { cafeId: proposal.cafeId, name: { equals: categoryName, mode: 'insensitive' } },
+        });
+        if (!category) {
+          category = await tx.productCategory.create({
+            data: {
+              cafeId: proposal.cafeId,
+              name: categoryName,
+              sortOrder: 0,
+            },
+          });
+        }
+
+        const product = await tx.product.create({
+          data: {
+            cafeId: proposal.cafeId,
+            branchId: branchId || null,
+            categoryId: category.id,
+            name,
+            price,
+            cost,
+            active: true,
+          } as any,
+        });
+
+        const createdRecipeIngredientIds: string[] = [];
+        for (const ing of ingredients) {
+          let invItem = await tx.inventory.findFirst({
+            where: {
+              cafeId: proposal.cafeId,
+              branchId: branchId || undefined,
+              itemName: { equals: ing.name, mode: 'insensitive' },
+            },
+          });
+          if (!invItem && branchId) {
+            invItem = await tx.inventory.create({
+              data: {
+                cafeId: proposal.cafeId,
+                branchId,
+                itemName: ing.name,
+                unit: ing.unit || 'g',
+                currentQty: new Prisma.Decimal(0),
+                minThreshold: new Prisma.Decimal(10),
+                costPerUnit: new Prisma.Decimal(0),
+              },
+            });
+          }
+
+          if (invItem) {
+            const recipeIng = await tx.recipeIngredient.create({
+              data: {
+                cafeId: proposal.cafeId,
+                productId: product.id,
+                inventoryId: invItem.id,
+                quantity: new Prisma.Decimal(Number(ing.quantity || 1)),
+                unit: ing.unit || invItem.unit || 'g',
+              } as any,
+            });
+            createdRecipeIngredientIds.push(recipeIng.id);
+          }
+        }
+
+        return {
+          verifiedState: {
+            productId: product.id,
+            name: product.name,
+            price: Number(product.price),
+            cost: Number(product.cost),
+            categoryId: category.id,
+            categoryName: category.name,
+            recipeIngredientsCount: createdRecipeIngredientIds.length,
+          },
+          affectedRecordIds: [product.id, ...createdRecipeIngredientIds],
+          rollback: { supported: true, metadata: { productId: product.id } },
+        };
+      }
+      case 'RECORD_INVENTORY_PURCHASE': {
+        const branchId = proposal.branchIds[0];
+        const items = Array.isArray(proposal.proposedState.items) ? proposal.proposedState.items : [];
+        const totalAmount = new Prisma.Decimal(Number(proposal.proposedState.totalAmount || 0));
+        const paymentMethod = String(proposal.proposedState.paymentMethod || 'CASH');
+        const affectedRecordIds: string[] = [];
+
+        for (const itm of items) {
+          let invItem = await tx.inventory.findFirst({
+            where: {
+              cafeId: proposal.cafeId,
+              branchId,
+              itemName: { equals: itm.name, mode: 'insensitive' },
+            },
+          });
+          const qty = Number(itm.quantity || 0);
+          const unitPrice = Number(itm.unitPrice || 0);
+
+          if (!invItem) {
+            invItem = await tx.inventory.create({
+              data: {
+                cafeId: proposal.cafeId,
+                branchId,
+                itemName: itm.name,
+                unit: itm.unit || 'piece',
+                currentQty: new Prisma.Decimal(qty),
+                minThreshold: new Prisma.Decimal(5),
+                costPerUnit: new Prisma.Decimal(unitPrice),
+              },
+            });
+          } else {
+            invItem = await tx.inventory.update({
+              where: { id: invItem.id },
+              data: {
+                currentQty: { increment: qty },
+                costPerUnit: unitPrice > 0 ? new Prisma.Decimal(unitPrice) : undefined,
+                version: { increment: 1 },
+              },
+            });
+          }
+          affectedRecordIds.push(invItem.id);
+
+          const ledger = await tx.stockLedger.create({
+            data: {
+              cafeId: proposal.cafeId,
+              inventoryId: invItem.id,
+              change: new Prisma.Decimal(qty),
+              balanceBefore: new Prisma.Decimal(Number(invItem.currentQty) - qty),
+              balanceAfter: invItem.currentQty,
+              reservedBefore: new Prisma.Decimal(0),
+              reservedAfter: new Prisma.Decimal(0),
+              reason: `AI Restock: ${itm.name} (+${qty} ${invItem.unit})`,
+            } as any,
+          });
+          affectedRecordIds.push(ledger.id);
+        }
+
+        let expenseId: string | null = null;
+        if (Number(totalAmount) > 0) {
+          const expense = await tx.expense.create({
+            data: {
+              cafeId: proposal.cafeId,
+              branchId,
+              category: 'مشتريات مخزن وبضاعة',
+              amount: totalAmount,
+              description: `مشتريات مخزن: ${items.map((i: any) => `${i.name} (${i.quantity} ${i.unit || ''})`).join(', ')}`,
+              expenseDate: new Date(),
+              expenseType: paymentMethod,
+            } as any,
+          });
+          expenseId = expense.id;
+          affectedRecordIds.push(expense.id);
+        }
+
+        return {
+          verifiedState: {
+            itemsCount: items.length,
+            totalAmount: Number(totalAmount),
+            paymentMethod,
+            expenseId,
+          },
+          affectedRecordIds,
+          rollback: { supported: false, metadata: { correctionRequired: true } },
+        };
+      }
       default:
         throw new Error(`No approved typed execution tool for ${proposal.actionType}.`);
     }
@@ -254,6 +423,8 @@ export class OwnerActionExecutorService {
       ENABLE_PRODUCT: 'enableApprovedProduct',
       UPDATE_MINIMUM_STOCK_LEVEL: 'updateApprovedMinimumStockLevel',
       CREATE_APPROVED_EXPENSE: 'createApprovedExpense',
+      CREATE_PRODUCT_WITH_RECIPE: 'createApprovedProductWithRecipe',
+      RECORD_INVENTORY_PURCHASE: 'recordApprovedInventoryPurchase',
     }[proposal.actionType] || 'unsupported';
   }
 

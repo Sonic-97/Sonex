@@ -19,6 +19,8 @@ export const OWNER_ACTION_TYPES = [
   'APPLY_APPROVED_STAFF_SCHEDULE',
   'CREATE_CUSTOMER_COMPENSATION_DRAFT',
   'APPLY_APPROVED_COMPENSATION',
+  'CREATE_PRODUCT_WITH_RECIPE',
+  'RECORD_INVENTORY_PURCHASE',
 ] as const;
 
 export type OwnerActionType = (typeof OWNER_ACTION_TYPES)[number];
@@ -53,7 +55,7 @@ export interface OwnerActionUser {
 }
 
 export interface OwnerActionResource {
-  type: 'Product' | 'Inventory' | 'Expense' | 'OfferDraft' | 'CampaignDraft' | 'PurchaseDraft' | 'ScheduleDraft' | 'CompensationDraft';
+  type: 'Product' | 'Inventory' | 'Expense' | 'OfferDraft' | 'CampaignDraft' | 'PurchaseDraft' | 'ScheduleDraft' | 'CompensationDraft' | 'ProductWithRecipe' | 'InventoryPurchase';
   id?: string;
   name: string;
 }

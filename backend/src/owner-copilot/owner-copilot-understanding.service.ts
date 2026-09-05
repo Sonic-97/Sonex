@@ -67,7 +67,7 @@ export class OwnerCopilotUnderstandingService {
     const branchReference = this.extractBranchReference(question);
     const isFollowUp = Boolean(previous) && this.isFollowUp(normalized, branchReference);
     const comparison = this.requestsComparison(normalized) ? 'PREVIOUS_PERIOD' : 'NONE';
-    const writeActionRequested = this.isWriteAction(normalized) && !/(محاكاة|simulate|simulation|لو)/.test(normalized);
+    const writeActionRequested = this.isWriteAction(normalized) && !/(محاكاة|simulate|simulation|(?:\b|^|\s)لو(?:\s|$))/i.test(normalized);
 
     let intent = securityViolation ? 'OWNER_UNKNOWN' : this.classifyIntent(normalized, writeActionRequested);
     if (
@@ -286,7 +286,7 @@ export class OwnerCopilotUnderstandingService {
   }
 
   private isWriteAction(text: string): boolean {
-    return /(غير السعر|غيّر السعر|عدل السعر|اعمل خصم|اعمل عرض|فعل العرض|ابعت رساله|ابعت رسالة|شيل المنتج|عطل المنتج|زود المخزون|سجل مصروف|اقفل الورديه|اقفل الوردية|خصم للعميل|عدل المرتب|سجل دفع|اعمل ريفاند|نفذ)/.test(text);
+    return /(ضيف|اضف|انشئ|أنشئ|اضافة|إضافة|اعمل صنف|اعمل منتج|اعمل مشروب|اشتريت|شريت|جبت|نزلت جبت|فاتورة شراء|شراء بضاعة|شراء|غير السعر|غيّر السعر|عدل السعر|اعمل خصم|اعمل عرض|فعل العرض|ابعت رساله|ابعت رسالة|شيل المنتج|عطل المنتج|زود المخزون|سجل مصروف|اقفل الورديه|اقفل الوردية|خصم للعميل|عدل المرتب|سجل دفع|اعمل ريفاند|نفذ)/.test(text);
   }
 
   private requestsComparison(text: string): boolean {

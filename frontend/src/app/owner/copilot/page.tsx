@@ -16,6 +16,8 @@ import {
   Database,
   LoaderCircle,
   LockKeyhole,
+  Mic,
+  MicOff,
   PackageSearch,
   Pencil,
   PlayCircle,
@@ -164,6 +166,9 @@ export default function OwnerCopilotPage() {
   const [lastScope, setLastScope] = useState<CopilotResponse['scope'] | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
+  const [listening, setListening] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
   useEffect(() => {
     setSessionId(createSessionId());
     fetchOwnerCopilotSuggestions()
@@ -173,7 +178,54 @@ export default function OwnerCopilotPage() {
         }
       })
       .catch(() => undefined);
+
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const reco = new SpeechRecognition();
+        reco.continuous = false;
+        reco.interimResults = true;
+        reco.lang = 'ar-EG';
+
+        reco.onresult = (event: any) => {
+          let text = '';
+          for (let i = 0; i < event.results.length; i++) {
+            text += event.results[i][0].transcript;
+          }
+          if (text) setQuestion(text);
+        };
+
+        reco.onerror = () => {
+          setListening(false);
+        };
+
+        reco.onend = () => {
+          setListening(false);
+        };
+
+        recognitionRef.current = reco;
+      }
+    }
   }, []);
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) {
+      setError('التعرف على الصوت غير مدعوم في متصفحك. جرب Google Chrome أو Edge.');
+      return;
+    }
+    if (listening) {
+      recognitionRef.current.stop();
+      setListening(false);
+    } else {
+      setError(null);
+      try {
+        recognitionRef.current.start();
+        setListening(true);
+      } catch {
+        setListening(false);
+      }
+    }
+  };
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
@@ -407,6 +459,20 @@ export default function OwnerCopilotPage() {
                 disabled={loading}
               />
               <button
+                type="button"
+                onClick={toggleListening}
+                title={listening ? 'إيقاف الاستماع الصوتي' : 'تحدث بالصوت (إملاء مصري)'}
+                aria-label="تسجيل صوتي"
+                disabled={loading}
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition ${
+                  listening
+                    ? 'animate-pulse bg-rose-600 text-white shadow-md shadow-rose-300'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200 hover:text-gray-900'
+                } disabled:cursor-not-allowed disabled:opacity-40`}
+              >
+                {listening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+              </button>
+              <button
                 type="submit"
                 title="إرسال السؤال"
                 aria-label="إرسال السؤال"
@@ -496,6 +562,8 @@ function CopilotAnswer({
 }
 
 const ACTION_LABELS: Record<string, string> = {
+  CREATE_PRODUCT_WITH_RECIPE: 'إضافة صنف جديد ووصفة مكونات',
+  RECORD_INVENTORY_PURCHASE: 'تسجيل فاتورة شراء بضاعة ومخزون',
   UPDATE_PRODUCT_PRICE: 'تعديل سعر منتج',
   UPDATE_PRODUCT_AVAILABILITY: 'تعديل إتاحة منتج في فرع',
   DISABLE_PRODUCT: 'تعطيل منتج في كل الفروع',
@@ -744,9 +812,10 @@ function displayValue(value: unknown): string {
 function fieldLabel(key: string): string {
   const labels: Record<string, string> = {
     price: 'السعر', cost: 'التكلفة', active: 'مفعّل', isAvailable: 'متاح', minThreshold: 'الحد الأدنى',
-    currentQty: 'المخزون الحالي', amount: 'القيمة', category: 'التصنيف', paymentMethod: 'طريقة الدفع',
+    currentQty: 'المخزون الحالي', amount: 'القيمة', category: 'التصنيف', categoryName: 'اسم التصنيف', paymentMethod: 'طريقة الدفع',
     expenseDate: 'تاريخ المصروف', description: 'الوصف', discountPercent: 'نسبة الخصم', proposedPrice: 'سعر العرض',
     branchPrice: 'سعر الفرع', activeOrderItems: 'عناصر الطلبات النشطة', version: 'نسخة المخزون', scope: 'النطاق',
+    items: 'أصناف البضاعة', ingredients: 'مكونات الوصفة', totalAmount: 'المبلغ الإجمالي', name: 'الاسم',
   };
   return labels[key] || key;
 }

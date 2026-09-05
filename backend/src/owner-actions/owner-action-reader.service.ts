@@ -234,6 +234,43 @@ export class OwnerActionReaderService {
       };
     }
 
+    if (actionType === 'CREATE_PRODUCT_WITH_RECIPE') {
+      const name = String(proposedState.name || 'New Product');
+      const price = Number(proposedState.price || 0);
+      const categoryName = String(proposedState.categoryName || 'مشروبات');
+      const ingredients = Array.isArray(proposedState.ingredients) ? proposedState.ingredients : [];
+      const estimatedCost = Number(proposedState.cost || 0);
+      return {
+        resource: { type: 'ProductWithRecipe', id: resourceId, name },
+        currentState: { exists: false },
+        impact: {
+          financial: `Selling price: ${round(price)} EGP, estimated cost: ${round(estimatedCost)} EGP, estimated unit margin: ${round(price - estimatedCost)} EGP.`,
+          operational: `Product "${name}" will be added under category "${categoryName}" with ${ingredients.length} recipe ingredient(s).`,
+          customer: 'Product will appear on in-cafe and digital menus upon creation.',
+          whatWillNotChange: ['Existing products', 'Historical orders'],
+        },
+        warnings: price <= estimatedCost && estimatedCost > 0 ? ['Selling price is below or equal to the estimated ingredient cost.'] : [],
+        branchNames: branchIds.length ? branchNames : ['All branches'],
+      };
+    }
+
+    if (actionType === 'RECORD_INVENTORY_PURCHASE') {
+      const items = Array.isArray(proposedState.items) ? proposedState.items : [];
+      const totalAmount = Number(proposedState.totalAmount || 0);
+      const paymentMethod = String(proposedState.paymentMethod || 'CASH');
+      return {
+        resource: { type: 'InventoryPurchase', id: resourceId, name: `Restock: ${items.map((i: any) => i.name).join(', ')}` },
+        currentState: { recorded: false },
+        impact: {
+          financial: `Total expense of ${round(totalAmount)} EGP via ${paymentMethod} recorded in today's ledger.`,
+          operational: `${items.length} inventory item(s) restocked and immediately available for consumption.`,
+          whatWillNotChange: ['Previous inventory records', 'Historical sales'],
+        },
+        warnings: [],
+        branchNames,
+      };
+    }
+
     return this.draftSnapshot(actionType, branchNames, proposedState);
   }
 

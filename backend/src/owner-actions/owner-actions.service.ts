@@ -366,6 +366,46 @@ export class OwnerActionsService {
       return this.prepared(proposal, 'Restock proposal only. Stock was not changed.');
     }
 
+    if (/(ضيف|اضف|انشئ|أنشئ|اعمل|create|add)\s+(منتج|صنف|مشروب|قهوة|item|product|واحد|كباية|كوب)/i.test(text) || (/(ضيف|اضف|انشئ|أنشئ|اعمل)/i.test(text) && /(بـ|بسعر|ب|price)\s*\d+/i.test(text))) {
+      const parsed = this.parseNaturalProduct(text, ownerMessage);
+      if (!parsed || !parsed.name || !parsed.price) {
+        return this.clarification('يرجى تحديد اسم المنتج الجديد وسعره (مثال: ضيف سبانش لاتيه بـ 65 جنيه وفيه 18 جرام بن و 150 مل حليب).');
+      }
+      const proposal = await this.prepare(user, {
+        actionType: 'CREATE_PRODUCT_WITH_RECIPE',
+        branchId,
+        proposedState: {
+          name: parsed.name,
+          price: parsed.price,
+          cost: parsed.cost,
+          categoryName: parsed.categoryName,
+          ingredients: parsed.ingredients,
+        },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
+      }, 'COPILOT');
+      return this.prepared(proposal, `تم تجهيز إضافة صنف "${parsed.name}" بسعر ${parsed.price} ج.م في قسم "${parsed.categoryName}" مع ${parsed.ingredients.length} مكون(ات) وصفة. راجع واعتمد للتطبيق فوراً.`);
+    }
+
+    if (/(اشتريت|شريت|جبت|نزلت جبت|فاتورة شراء|شراء بضاعة|restock|buy|bought)/i.test(text)) {
+      const parsed = this.parseNaturalPurchase(text, ownerMessage);
+      if (!parsed || !parsed.items.length || !parsed.totalAmount) {
+        return this.clarification('يرجى تحديد الأصناف المشتراة والكمية والسعر (مثال: اشتريت 10 كيلو بن بـ 4000 جنيه و 24 كانز بيبسي بـ 280 دفعتهم كاش).');
+      }
+      const proposal = await this.prepare(user, {
+        actionType: 'RECORD_INVENTORY_PURCHASE',
+        branchId,
+        proposedState: {
+          items: parsed.items,
+          totalAmount: parsed.totalAmount,
+          paymentMethod: parsed.paymentMethod,
+        },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
+      }, 'COPILOT');
+      return this.prepared(proposal, `تم تجهيز فاتورة شراء ${parsed.items.length} صنف/أصناف بقيمة إجمالية ${parsed.totalAmount} ج.م (${parsed.paymentMethod === 'CASH' ? 'كاش من الدرج' : 'بالبطاقة'}). راجع واعتمد لإضافة الكميات للمخزن وتسجيل المصروف.`);
+    }
+
     this.metrics.blockedRequests += 1;
     return { handled: true, blocked: true, message: 'This write request is not in the current Stage 6 allowlist or needs more exact details.', warnings: ['No proposal and no business write were created.'] };
   }
@@ -649,6 +689,116 @@ export class OwnerActionsService {
       warnings: proposal.warnings,
       proposal,
     };
+  }
+
+  private parseNaturalProduct(text: string, raw: string): {
+    name: string;
+    price: number;
+    cost: number;
+    categoryName: string;
+    ingredients: Array<{ name: string; quantity: number; unit: string }>;
+  } | null {
+    const norm = this.normalizeText(text);
+
+    const priceMatch = norm.match(/(?:بـ|بسعر|ب|price)\s*(\d+(?:\.\d+)?)/);
+    const price = priceMatch ? Number(priceMatch[1]) : 0;
+    if (!price) return null;
+
+    let name = '';
+    const nameMatch = raw.match(/(?:ضيف|اضف|انشئ|أنشئ|اعمل|add|create)\s+(?:صنف|منتج|مشروب|قهوة|واحد|كباية|جديد\s+)*([^\d,،\.\n]+?)(?:\s+بـ|\s+بسعر|\s+ب|\s+price)/i);
+    if (nameMatch && nameMatch[1]) {
+      name = nameMatch[1].trim().replace(/^(صنف|منتج|مشروب|جديد|واحد)\s+/, '');
+    } else {
+      const altMatch = raw.match(/(?:اسم[ه|و]?\s+|جديد\s+)([^\d,،\.\n]+?)(?:\s+بـ|\s+بسعر|\s+ب|\s+price)/i);
+      name = altMatch ? altMatch[1].trim() : 'مشروب جديد';
+    }
+
+    let categoryName = 'مشروبات';
+    if (/(بارد|مثلج|ايس|ice|كولد|مفرز)/i.test(norm)) {
+      categoryName = 'مشروبات باردة';
+    } else if (/(كرواسون|كوكيز|دونات|كيك|مخبوز|ساندوتش|فطير|باتيه)/i.test(norm)) {
+      categoryName = 'مخبوزات وحلويات';
+    } else if (/(ساخن|قهوة|اسبريسو|لاتيه|كابتشينو|شاي|كورتادو|فلات)/i.test(norm)) {
+      categoryName = 'مشروبات ساخنة';
+    }
+
+    const ingredients: Array<{ name: string; quantity: number; unit: string }> = [];
+    const ingPattern1 = /(\d+(?:\.\d+)?)\s*(جرام|جم|غرام|غ|g|مل|ملي|لتر|كوب|علبة|قطعة)\s+([^\d,،\.\n]+)/gi;
+    let match;
+    while ((match = ingPattern1.exec(raw)) !== null) {
+      const qty = Number(match[1]);
+      const rawUnit = match[2].trim();
+      const ingName = match[3].trim().replace(/(?:من|في|و)\s+/, '').replace(/\s+(?:و|مع).*$/, '');
+      const unit = /(مل|ملي)/.test(rawUnit) ? 'ml' : /(جرام|جم|غ|g)/.test(rawUnit) ? 'g' : /(لتر)/.test(rawUnit) ? 'liter' : 'piece';
+      if (ingName.length >= 2 && !ingredients.some((i) => i.name === ingName)) {
+        ingredients.push({ name: ingName, quantity: qty, unit });
+      }
+    }
+
+    const cost = round(price * 0.25);
+    return { name, price, cost, categoryName, ingredients };
+  }
+
+  private parseNaturalPurchase(text: string, raw: string): {
+    items: Array<{ name: string; quantity: number; unit: string; unitPrice: number }>;
+    totalAmount: number;
+    paymentMethod: 'CASH' | 'CARD';
+  } | null {
+    const norm = this.normalizeText(text);
+    const paymentMethod: 'CASH' | 'CARD' = /(كاش|نقدي|درج|خزينة|cash)/i.test(norm) ? 'CASH' : 'CARD';
+
+    const items: Array<{ name: string; quantity: number; unit: string; unitPrice: number }> = [];
+    let computedTotal = 0;
+
+    // Clean trailing payment and drawer phrases
+    const cleaned = raw.replace(/\s*(?:دفعتهم|دفعت|كاش|نقدي|من الدرج|من الخزينة|بالفيزا|بالكرت).*$/i, '');
+    const chunks = cleaned.split(/(?:\s+و\s*|\s*[,،\n]\s*)/);
+
+    for (let chunk of chunks) {
+      chunk = chunk.replace(/^(اشتريت|شريت|جبت|نزلت جبت|فاتورة شراء|شراء بضاعة|شراء)\s+/i, '').trim();
+      const m = chunk.match(/(\d+(?:\.\d+)?)\s*(كيلو|كجم|ك|kg|علبة|علب|كانز|كرتونة|كراتين|شوال|لتر|قطعة|باكت)\s+([^\d]+?)(?:\s+(الكيلو|الواحدة|العلبة|الكانز|للكيلو)?\s*(?:بـ|بسعر|ب)\s*(\d+(?:\.\d+)?))?(?:\s*(?:جنيه|ج))?$/i);
+      if (m) {
+        const qty = Number(m[1]);
+        const rawUnit = m[2].trim();
+        const itemName = m[3].trim().replace(/^(من|في)\s+/, '');
+        const isPerUnit = Boolean(m[4]);
+        const priceVal = m[5] ? Number(m[5]) : 0;
+
+        let unit = 'piece';
+        if (/(كيلو|كجم|ك|kg)/i.test(rawUnit)) unit = 'kg';
+        else if (/(لتر)/i.test(rawUnit)) unit = 'liter';
+        else if (/(علبة|علب|كانز)/i.test(rawUnit)) unit = 'can';
+        else if (/(شوال|كرتونة|كراتين)/i.test(rawUnit)) unit = 'bag';
+
+        let unitPrice = priceVal;
+        if (isPerUnit) {
+          unitPrice = priceVal;
+          computedTotal += unitPrice * qty;
+        } else if (priceVal > 0) {
+          if (qty > 1 && priceVal > 50) {
+            computedTotal += priceVal;
+            unitPrice = round(priceVal / qty);
+          } else {
+            unitPrice = priceVal;
+            computedTotal += unitPrice * qty;
+          }
+        }
+
+        if (itemName.length >= 2) {
+          items.push({ name: itemName, quantity: qty, unit, unitPrice });
+        }
+      }
+    }
+
+    const overallTotalMatch = norm.match(/(?:اجمالي|إجمالي|دفعت|دفعتهم)\s*(\d+(?:\.\d+)?)\s*(?:جنيه|ج)?/);
+    const explicitTotal = overallTotalMatch ? Number(overallTotalMatch[1]) : 0;
+    const totalAmount = explicitTotal > 0 ? explicitTotal : (computedTotal > 0 ? computedTotal : 0);
+
+    if (!items.length && totalAmount > 0) {
+      items.push({ name: 'بضاعة مخزن', quantity: 1, unit: 'piece', unitPrice: totalAmount });
+    }
+
+    return { items, totalAmount, paymentMethod };
   }
 
   private safeError(error: unknown): string {

@@ -29,6 +29,8 @@ const DEFINITIONS: Record<OwnerActionType, OwnerActionDefinition> = {
   APPLY_APPROVED_STAFF_SCHEDULE: { risk: 'HIGH', reversibility: 'PARTIALLY_REVERSIBLE', allowedRoles: ['OWNER'], permission: 'SCHEDULE_APPLY', branchRequired: true, executable: false, unsupportedReason: 'Availability, leave and overlap models are not complete.' },
   CREATE_CUSTOMER_COMPENSATION_DRAFT: { risk: 'LOW', reversibility: 'REVERSIBLE', allowedRoles: ['OWNER'], permission: 'COMPENSATION_DRAFT_CREATE', branchRequired: true, executable: false },
   APPLY_APPROVED_COMPENSATION: { risk: 'HIGH', reversibility: 'PARTIALLY_REVERSIBLE', allowedRoles: ['OWNER'], permission: 'COMPENSATION_APPLY', branchRequired: true, executable: false, unsupportedReason: 'No bounded compensation ledger or fraud-limit policy exists.' },
+  CREATE_PRODUCT_WITH_RECIPE: { risk: 'LOW', reversibility: 'REVERSIBLE', allowedRoles: ['OWNER', 'MANAGER'], permission: 'PRODUCT_CREATE', branchRequired: false, executable: true, tool: 'createApprovedProductWithRecipe' },
+  RECORD_INVENTORY_PURCHASE: { risk: 'MEDIUM', reversibility: 'PARTIALLY_REVERSIBLE', allowedRoles: ['OWNER', 'MANAGER'], permission: 'INVENTORY_PURCHASE_RECORD', branchRequired: true, executable: true, tool: 'recordApprovedInventoryPurchase' },
 };
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -39,6 +41,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'RESTOCK_PROPOSAL_CREATE',
     'INVENTORY_THRESHOLD_UPDATE',
     'SCHEDULE_DRAFT_CREATE',
+    'PRODUCT_CREATE',
+    'INVENTORY_PURCHASE_RECORD',
   ],
 };
 
