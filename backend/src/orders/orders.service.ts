@@ -710,10 +710,10 @@ export class OrdersService {
   // =========================
 
   async findAll(filters: any, branchId?: string, cafeId?: string) {
-    const where: Prisma.OrderWhereInput = {};
-    if (cafeId) {
-      where.cafeId = cafeId;
+    if (!cafeId) {
+      throw new ForbiddenException('Tenant context (cafeId) is required');
     }
+    const where: Prisma.OrderWhereInput = { cafeId };
     if (branchId) {
       where.branchId = branchId;
     }
@@ -753,8 +753,11 @@ export class OrdersService {
   }
 
   async findOne(id: string, cafeId?: string) {
-    const order = await this.prisma.order.findUnique({
-      where: { id },
+    if (!cafeId) {
+      throw new ForbiddenException('Tenant context (cafeId) is required');
+    }
+    const order = await this.prisma.order.findFirst({
+      where: { id, cafeId },
       include: {
         customer: true,
         staff: true,
@@ -762,9 +765,6 @@ export class OrdersService {
       },
     });
     if (!order) throw new NotFoundException('Order not found');
-    if (cafeId && order.cafeId !== cafeId) {
-      throw new ForbiddenException('Unauthorized cafe access for this order');
-    }
     return order;
   }
 

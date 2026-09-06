@@ -1,9 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import axios from 'axios';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class WhatsappService {
   private readonly logger = new Logger(WhatsappService.name);
+
+  constructor(private readonly prisma: PrismaService) {}
 
   private lidMapping: Map<string, { phoneJid: string }> = new Map();
 
@@ -126,7 +129,42 @@ export class WhatsappService {
   async sendMessage(
     phone: string,
     message: string,
+    cafeId?: string,
   ): Promise<{ success: boolean; provider: string; blocked?: string }> {
+    // 1. Check if tenant has a dedicated active WhatsApp account configured
+    if (cafeId && this.prisma) {
+      try {
+        const account = await this.prisma.cafeWhatsAppAccount.findUnique({
+          where: { cafeId },
+        });
+        if (account && account.status === 'CONNECTED') {
+          if (account.provider === 'meta' && account.phoneNumberId && account.accessToken) {
+            const cleanPhone = phone.replace(/\D/g, '');
+            await axios.post(
+              `https://graph.facebook.com/v21.0/${account.phoneNumberId}/messages`,
+              {
+                messaging_product: 'whatsapp',
+                to: cleanPhone,
+                type: 'text',
+                text: { body: message },
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${account.accessToken}`,
+                  'Content-Type': 'application/json',
+                },
+                timeout: 10000,
+              },
+            );
+            this.logger.log(`Meta Cloud API message sent to ${phone} for cafe ${cafeId}`);
+            return { success: true, provider: 'meta' };
+          }
+        }
+      } catch (err) {
+        this.logger.error(`Tenant WhatsApp send failed for cafe ${cafeId}: ${(err as Error).message}`);
+      }
+    }
+
     const provider = process.env.WHATSAPP_PROVIDER || 'mock';
 
     if (provider === 'mock') {

@@ -102,6 +102,7 @@ model Cafe {
   suggestions            Suggestion[]
   whatsappCustomers      WhatsappCustomer[]
   whatsappLogs           WhatsAppLog[]
+  whatsAppAccount        CafeWhatsAppAccount?
   telegramChats          TelegramChat[]
   telegramSessions       TelegramSession[]
   telegramMessageLogs    TelegramMessageLog[]
@@ -225,12 +226,12 @@ model Staff {
   cafeId                    String                 @map("cafe_id")
   branchId                  String                 @map("branch_id")
   name                      String
-  email                     String?                @unique
+  email                     String?
   role                      String
-  phone                     String                 @unique
+  phone                     String
   pinHash                   String
   active                    Boolean                @default(true)
-  loginCode                 String?                @unique
+  loginCode                 String?
   password                  String?                @map("password")
   salary                    Decimal                @default(0) @db.Decimal(10, 2)
   salaryType                String                 @default("MONTHLY")
@@ -269,6 +270,8 @@ model Staff {
   unifiedBroughtOrders      UnifiedOrder[]     @relation("UnifiedOrderBroughtBy")
   unifiedRefunds            UnifiedRefund[]
 
+  @@unique([cafeId, phone])
+  @@unique([cafeId, loginCode])
   @@index([cafeId, branchId])
   @@index([cafeId, role])
   @@index([loginCode])
@@ -605,7 +608,7 @@ model Driver {
 
 model Order {
   id                   String       @id @default(dbgenerated("(gen_random_uuid())::text"))
-  code                 String       @unique
+  code                 String
   cafeId               String       @map("cafe_id")
   branchId             String       @map("branch_id")
   customerId           String
@@ -657,6 +660,7 @@ model Order {
   paymentLogs          PaymentLog[]
   payments             Payment[]
 
+  @@unique([cafeId, code])
   @@unique([cafeId, externalId])
   @@index([cafeId, branchId])
   @@index([cafeId, branchId, status])
@@ -1585,7 +1589,7 @@ model PlayStationSession {
 model LidMapping {
   id          String   @id @default(dbgenerated("(gen_random_uuid())::text"))
   cafeId      String   @map("cafe_id")
-  lid         String   @unique
+  lid         String
   phone       String?
   phoneJid    String?
   displayName String?  @map("display_name")
@@ -2225,7 +2229,7 @@ model UnifiedOrder {
   id                    String    @id @default(dbgenerated("(gen_random_uuid())::text"))
   cafeId                String    @map("cafe_id")
   branchId              String    @map("branch_id")
-  code                  String    @unique
+  code                  String
 
   // ── Channel & Source (independent axes) ──
   channel               String    @default("IN_CAFE")
@@ -2761,4 +2765,23 @@ model RecipeBOM {
 
   @@unique([productId, inventoryId])
   @@map("recipe_boms")
+}
+
+model CafeWhatsAppAccount {
+  id                  String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId              String   @unique @map("cafe_id")
+  provider            String   @default("meta") // meta, openwa, twilio
+  phoneNumberId       String?  @unique @map("phone_number_id")
+  wabaId              String?  @map("waba_id")
+  displayPhoneNumber  String?  @map("display_phone_number")
+  accessToken         String?  @map("access_token")
+  webhookVerifyToken  String?  @map("webhook_verify_token")
+  sessionId           String?  @unique @map("session_id")
+  status              String   @default("DISCONNECTED")
+  createdAt           DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt           DateTime @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  cafe                Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@map("cafe_whatsapp_accounts")
 }

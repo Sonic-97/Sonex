@@ -38,18 +38,18 @@ export class StaffService {
     for (let i = 0; i < 20; i++) {
       const digits = Math.floor(10000 + Math.random() * 90000);
       const code = `${prefix}-${digits}`;
-      const existing = await this.prisma.staff.findUnique({ where: { loginCode: code } });
+      const existing = await this.prisma.staff.findFirst({ where: { loginCode: code } });
       if (!existing) return code;
     }
     throw new ConflictException('Unable to generate unique code');
   }
 
   async create(dto: CreateStaffDto, cafeId?: string, actorId?: string) {
-    const existing = await this.prisma.staff.findUnique({ where: { phone: dto.phone } });
+    const existing = await this.prisma.staff.findFirst({ where: cafeId ? { cafeId, phone: dto.phone } : { phone: dto.phone } });
     if (existing) throw new BadRequestException('Phone already registered');
 
     if (dto.loginCode) {
-      const codeExists = await this.prisma.staff.findUnique({ where: { loginCode: dto.loginCode } });
+      const codeExists = await this.prisma.staff.findFirst({ where: cafeId ? { cafeId, loginCode: dto.loginCode } : { loginCode: dto.loginCode } });
       if (codeExists) throw new ConflictException('Login code already in use');
     }
 
@@ -123,7 +123,7 @@ export class StaffService {
     const before = await this.findOne(id, cafeId);
 
     if (dto.phone) {
-      const existing = await this.prisma.staff.findUnique({ where: { phone: dto.phone } });
+      const existing = await this.prisma.staff.findFirst({ where: before?.cafeId ? { cafeId: before.cafeId, phone: dto.phone } : { phone: dto.phone } });
       if (existing && existing.id !== id) throw new BadRequestException('Phone already in use');
     }
 

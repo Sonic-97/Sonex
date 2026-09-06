@@ -351,25 +351,29 @@ ${lines.join('\n')}
     }
   }
 
-  async getSession(phone: string): Promise<OrderFlowSession | null> {
+  async getSession(phone: string, cafeId?: string): Promise<OrderFlowSession | null> {
     if (this.useRedis) {
-      return (await this.redisService.getOrderFlowSession(phone)) as unknown as OrderFlowSession | null;
+      return (await this.redisService.getOrderFlowSession(phone, cafeId)) as unknown as OrderFlowSession | null;
     }
-    return this.sessions.get(phone) ?? null;
+    const memKey = cafeId ? `${cafeId}:${phone}` : phone;
+    return this.sessions.get(memKey) ?? this.sessions.get(phone) ?? null;
   }
 
-  async saveSession(phone: string, data: OrderFlowSession): Promise<void> {
+  async saveSession(phone: string, data: OrderFlowSession, cafeId?: string): Promise<void> {
+    const effectiveCafeId = cafeId || data.cafeId;
     if (this.useRedis) {
-      await this.redisService.setOrderFlowSession(phone, data as unknown as Record<string, unknown>);
+      await this.redisService.setOrderFlowSession(phone, data as unknown as Record<string, unknown>, 1800, effectiveCafeId);
     } else {
-      this.sessions.set(phone, data);
+      const memKey = effectiveCafeId ? `${effectiveCafeId}:${phone}` : phone;
+      this.sessions.set(memKey, data);
     }
   }
 
-  async deleteSession(phone: string): Promise<void> {
+  async deleteSession(phone: string, cafeId?: string): Promise<void> {
     if (this.useRedis) {
-      await this.redisService.delOrderFlowSession(phone);
+      await this.redisService.delOrderFlowSession(phone, cafeId);
     } else {
+      if (cafeId) this.sessions.delete(`${cafeId}:${phone}`);
       this.sessions.delete(phone);
     }
   }

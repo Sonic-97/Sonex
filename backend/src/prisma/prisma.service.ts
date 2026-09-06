@@ -71,14 +71,22 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
               return exec();
             }
 
-            if (['findUnique', 'findFirst', 'findMany', 'update', 'updateMany',
-                 'delete', 'deleteMany', 'count', 'aggregate', 'groupBy',
-                 'upsert'].includes(operation)) {
-              const where = (args as any)?.where as Record<string, unknown> | undefined;
-              if (where) {
-                if (where.id && !where.cafeId && !(where as any).cafe_id) {
-                  console.warn(`[TENANT-WARN] ${model}.${operation}: missing cafeId for id=${where.id}`);
+            if (['findFirst', 'findMany', 'count', 'aggregate', 'groupBy',
+                 'update', 'updateMany', 'delete', 'deleteMany'].includes(operation)) {
+              const opArgs = args as any;
+              if (opArgs) {
+                if (!opArgs.where) {
+                  opArgs.where = { cafeId };
+                } else if (!opArgs.where.cafeId && !opArgs.where.cafe_id) {
+                  opArgs.where.cafeId = cafeId;
                 }
+              }
+            }
+
+            if (['findUnique', 'upsert'].includes(operation)) {
+              const where = (args as any)?.where as Record<string, unknown> | undefined;
+              if (where && where.id && !where.cafeId && !(where as any).cafe_id) {
+                console.warn(`[TENANT-WARN] ${model}.${operation}: findUnique/upsert using id without cafeId: id=${where.id}`);
               }
             }
 

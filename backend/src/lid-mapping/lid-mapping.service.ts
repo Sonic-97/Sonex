@@ -99,7 +99,7 @@ export class LidMappingService {
 
     const mapping = cafeId
       ? await this.prisma.lidMapping.findFirst({ where })
-      : await this.prisma.lidMapping.findUnique({ where: { lid: clean } });
+      : await this.prisma.lidMapping.findFirst({ where: { lid: clean } });
 
     if (!mapping) return null;
     return {

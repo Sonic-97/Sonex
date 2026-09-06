@@ -362,7 +362,7 @@ export class AuthService {
   }
 
   async registerLoginCode(employeeId: string, code: string) {
-    const existing = await this.prisma.staff.findUnique({ where: { loginCode: code } });
+    const existing = await this.prisma.staff.findFirst({ where: { loginCode: code } });
     if (existing && existing.id !== employeeId) throw new ConflictException('Login code already in use');
 
     return this.prisma.staff.update({
@@ -387,7 +387,7 @@ export class AuthService {
     for (let i = 0; i < maxAttempts; i++) {
       const digits = Math.floor(10000 + Math.random() * 90000);
       const code = `${prefix}-${digits}`;
-      const existing = await this.prisma.staff.findUnique({ where: { loginCode: code } });
+      const existing = await this.prisma.staff.findFirst({ where: { loginCode: code } });
       if (!existing) return code;
     }
     throw new ConflictException('Unable to generate unique code, please try again');

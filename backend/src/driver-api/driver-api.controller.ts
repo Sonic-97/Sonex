@@ -2,7 +2,9 @@ import { Controller, Post, Get, Put, Body, Param, UseGuards, HttpCode, HttpStatu
 import { DriverApiService } from './driver-api.service';
 import { DriverApiAuthGuard } from './driver-api-auth.guard';
 import { DriverLoginRequest, DriverLocationUpdate, DriverStatusUpdate, AuthPayload } from './driver-api.types';
+import { Public } from '../auth/decorators';
 
+@Public()
 @Controller('driver')
 export class DriverApiController {
   constructor(private readonly api: DriverApiService) {}

@@ -282,7 +282,7 @@ export class DebugController {
   @Get('staff-by-email/:email')
   @Public()
   async findStaffByEmail(@Param('email') email: string) {
-    const staff = await this.prisma.staff.findUnique({
+    const staff = await this.prisma.staff.findFirst({
       where: { email },
       select: { id: true, name: true, email: true, phone: true, role: true, loginCode: true, cafeId: true, cafe: { select: { id: true, name: true, cafeCode: true, ownerCode: true, ownerPassword: true } } },
     });

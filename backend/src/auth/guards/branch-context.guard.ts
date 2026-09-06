@@ -1,4 +1,4 @@
-import { Injectable, CanActivate, ExecutionContext, ForbiddenException } from '@nestjs/common';
+import { Injectable, CanActivate, ExecutionContext, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
@@ -16,8 +16,8 @@ export class BranchContextGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
-    // User not yet authenticated — let JwtAuthGuard handle it
-    if (!user) return true;
+    // Reject unauthenticated requests on non-public routes
+    if (!user) throw new UnauthorizedException('Authentication required');
 
     // Super-admin operates across cafes — no cafe/branch context needed
     if (user.role === 'SUPER_ADMIN') return true;

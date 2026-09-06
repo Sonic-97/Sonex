@@ -50,6 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/owner/closing', label: 'الإغلاق اليومي', icon: CheckCircle2 },
       { href: '/owner/settlements', label: 'التسويات', icon: Wallet },
       { href: '/owner/notifications', label: 'الإشعارات', icon: AlertTriangle },
+      { href: '/owner/whatsapp', label: 'ربط واتساب', icon: MessageCircle },
       { href: '/owner/settings', label: 'الإعدادات', icon: Settings },
     ],
   },

@@ -296,10 +296,8 @@ export class InventoryService {
   // ── QUERIES ──
 
   async findAll(branchId?: string, cafeId?: string) {
-    const where: Prisma.InventoryWhereInput = {};
-    if (cafeId) {
-      where.cafeId = cafeId;
-    }
+    if (!cafeId) throw new ForbiddenException('Tenant context (cafeId) is required');
+    const where: Prisma.InventoryWhereInput = { cafeId };
     if (branchId) {
       where.branchId = branchId;
     }
@@ -354,9 +352,9 @@ export class InventoryService {
   }
 
   async update(id: string, data: { itemName?: string; unit?: string; currentQty?: number; minThreshold?: number; costPerUnit?: number }, cafeId?: string) {
-    const item = await this.prisma.inventory.findUnique({ where: { id } });
+    if (!cafeId) throw new ForbiddenException('Tenant context (cafeId) is required');
+    const item = await this.prisma.inventory.findFirst({ where: { id, cafeId } });
     if (!item) throw new NotFoundException('Inventory item not found');
-    if (cafeId && item.cafeId !== cafeId) throw new ForbiddenException('Unauthorized cafe access');
     const updated = await this.prisma.inventory.update({ where: { id }, data });
     this.auditService.logAction({
       cafeId: item.cafeId,
@@ -384,9 +382,9 @@ export class InventoryService {
   }
 
   async remove(id: string, cafeId?: string) {
-    const item = await this.prisma.inventory.findUnique({ where: { id } });
+    if (!cafeId) throw new ForbiddenException('Tenant context (cafeId) is required');
+    const item = await this.prisma.inventory.findFirst({ where: { id, cafeId } });
     if (!item) throw new NotFoundException('Inventory item not found');
-    if (cafeId && item.cafeId !== cafeId) throw new ForbiddenException('Unauthorized cafe access');
     await this.prisma.inventory.delete({ where: { id } });
     this.auditService.logAction({
       cafeId: item.cafeId,
@@ -405,9 +403,9 @@ export class InventoryService {
   }
 
   async updateThreshold(id: string, minThreshold: number, cafeId?: string) {
-    const item = await this.prisma.inventory.findUnique({ where: { id } });
+    if (!cafeId) throw new ForbiddenException('Tenant context (cafeId) is required');
+    const item = await this.prisma.inventory.findFirst({ where: { id, cafeId } });
     if (!item) throw new NotFoundException('Inventory item not found');
-    if (cafeId && item.cafeId !== cafeId) throw new ForbiddenException('Unauthorized cafe access');
     const updated = await this.prisma.inventory.update({ where: { id }, data: { minThreshold } });
     this.auditService.logAction({
       cafeId: item.cafeId,

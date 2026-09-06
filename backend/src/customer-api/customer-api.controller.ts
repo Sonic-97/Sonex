@@ -2,7 +2,9 @@ import { Controller, Post, Get, Body, Param, UseGuards, HttpCode, HttpStatus, Re
 import { CustomerApiService } from './customer-api.service';
 import { CustomerApiAuthGuard } from './customer-api-auth.guard';
 import { CustomerLoginRequest, CustomerMessageRequest, CustomerConfirmRequest, AuthPayload } from './customer-api.types';
+import { Public } from '../auth/decorators';
 
+@Public()
 @Controller('customer')
 export class CustomerApiController {
   constructor(private readonly api: CustomerApiService) {}

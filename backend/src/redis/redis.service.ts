@@ -78,29 +78,33 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }, undefined);
   }
 
-  async getOrderFlowSession(phone: string): Promise<Record<string, unknown> | null> {
+  async getOrderFlowSession(phone: string, cafeId?: string): Promise<Record<string, unknown> | null> {
+    const key = cafeId ? `orderflow:session:${cafeId}:${phone}` : `orderflow:session:${phone}`;
     return this.cmd(async () => {
-      const raw = await this.client.get(`orderflow:session:${phone}`);
+      const raw = await this.client.get(key);
       return raw ? JSON.parse(raw) : null;
     }, null);
   }
 
-  async setOrderFlowSession(phone: string, data: Record<string, unknown>, ttl = 1800): Promise<void> {
+  async setOrderFlowSession(phone: string, data: Record<string, unknown>, ttl = 1800, cafeId?: string): Promise<void> {
+    const key = cafeId ? `orderflow:session:${cafeId}:${phone}` : `orderflow:session:${phone}`;
     return this.cmd(async () => {
-      await this.client.setex(`orderflow:session:${phone}`, ttl, JSON.stringify(data));
+      await this.client.setex(key, ttl, JSON.stringify(data));
     }, undefined);
   }
 
-  async delOrderFlowSession(phone: string): Promise<void> {
+  async delOrderFlowSession(phone: string, cafeId?: string): Promise<void> {
+    const key = cafeId ? `orderflow:session:${cafeId}:${phone}` : `orderflow:session:${phone}`;
     return this.cmd(async () => {
-      await this.client.del(`orderflow:session:${phone}`);
+      await this.client.del(key);
     }, undefined);
   }
 
-  async acquireOrderFlowLock(phone: string, _ttl = 10000): Promise<boolean> {
+  async acquireOrderFlowLock(phone: string, _ttl = 10000, cafeId?: string): Promise<boolean> {
     if (!this.connected) return true;
+    const key = cafeId ? `orderflow:lock:${cafeId}:${phone}` : `orderflow:lock:${phone}`;
     try {
-      const result = await this.client.set(`orderflow:lock:${phone}`, '1', 'PX', _ttl, 'NX');
+      const result = await this.client.set(key, '1', 'PX', _ttl, 'NX');
       return result === 'OK';
     } catch (e) {
       this.logger.warn(`Redis acquireOrderFlowLock failed: ${(e as Error).message}`);

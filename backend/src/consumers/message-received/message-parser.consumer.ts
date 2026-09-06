@@ -115,7 +115,7 @@ export class MessageParserConsumer {
 
     let existingSession: any = null;
     try {
-      existingSession = await this.orderFlowService.getSession(phone);
+      existingSession = await this.orderFlowService.getSession(phone, cafeId);
     } catch {
       // ignore
     }
@@ -219,7 +219,7 @@ export class MessageParserConsumer {
           }
 
           try {
-            const result = await this.whatsappService.sendMessage(targetJid, reply);
+            const result = await this.whatsappService.sendMessage(targetJid, reply, cafeId);
             console.log(JSON.stringify({
               event: 'TRACE_SEND_RESULT',
               traceId,

@@ -8,6 +8,8 @@ import { AiModule } from '../ai/ai.module';
 import { OrdersModule } from '../orders/orders.module';
 import { PrismaModule } from '../prisma/prisma.module';
 
+import { WhatsAppTenantResolverService } from './whatsapp-tenant-resolver.service';
+
 @Module({
   imports: [
     MessagesModule,
@@ -18,8 +20,8 @@ import { PrismaModule } from '../prisma/prisma.module';
     PrismaModule,
   ],
   controllers: [CommunicationController],
-  providers: [CommunicationService],
-  exports: [CommunicationService],
+  providers: [CommunicationService, WhatsAppTenantResolverService],
+  exports: [CommunicationService, WhatsAppTenantResolverService],
 })
 export class CommunicationModule {}
 

@@ -31,6 +31,7 @@ export class ExpensesService {
   }
 
   async findAll(cafeId: string, from?: string, to?: string) {
+    if (!cafeId) throw new ForbiddenException('Tenant context (cafeId) is required');
     const where: Record<string, unknown> = { cafeId };
     if (from || to) {
       where.expenseDate = {};
@@ -45,9 +46,9 @@ export class ExpensesService {
   }
 
   async findOne(id: string, cafeId?: string) {
-    const expense = await this.prisma.expense.findUnique({ where: { id } });
+    if (!cafeId) throw new ForbiddenException('Tenant context (cafeId) is required');
+    const expense = await this.prisma.expense.findFirst({ where: { id, cafeId } });
     if (!expense) throw new NotFoundException('Expense not found');
-    if (cafeId && expense.cafeId !== cafeId) throw new ForbiddenException('Unauthorized cafe access');
     return expense;
   }
 

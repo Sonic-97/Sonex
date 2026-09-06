@@ -10,6 +10,7 @@ import { LidResolverService } from '../lid-resolver/lid-resolver.service';
 import { PendingReplyService } from '../pending-reply/pending-reply.service';
 import { EventBusService } from '../events/event-bus.service';
 import { NormalizedWhatsAppMessage } from './dto/whatsapp-webhook.dto';
+import { WhatsAppTenantResolverService } from './whatsapp-tenant-resolver.service';
 
 @Injectable()
 export class CommunicationService implements OnApplicationBootstrap {
@@ -27,6 +28,7 @@ export class CommunicationService implements OnApplicationBootstrap {
     private readonly lidResolverService: LidResolverService,
     private readonly pendingReplyService: PendingReplyService,
     private readonly eventBus: EventBusService,
+    private readonly tenantResolver: WhatsAppTenantResolverService,
   ) {}
 
   async onApplicationBootstrap() {
@@ -66,8 +68,11 @@ export class CommunicationService implements OnApplicationBootstrap {
 
   async handleNormalized(normalized: NormalizedWhatsAppMessage) {
     const traceId = `TRACE-${Date.now()}`;
+    const destination = normalized.to || '';
+    const resolvedCafeId = await this.tenantResolver.resolveTenantId(destination);
+    const cafeId = resolvedCafeId || this.defaultCafeId || '';
 
-    this.logger.log(`[${traceId}] Publishing normalized message.received: source=${normalized.source} msgId=${normalized.messageId} from=${normalized.from}`);
+    this.logger.log(`[${traceId}] Publishing normalized message.received: source=${normalized.source} dest=${destination} tenant=${cafeId} msgId=${normalized.messageId} from=${normalized.from}`);
 
     await this.eventBus.publish('message.received', {
       messageId: normalized.messageId,
@@ -76,14 +81,19 @@ export class CommunicationService implements OnApplicationBootstrap {
       participant: '',
       fromMe: false,
       timestamp: normalized.timestamp,
-    }, this.defaultCafeId || '', { dedupKey: normalized.messageId || undefined });
+    }, cafeId, { dedupKey: normalized.messageId || undefined });
 
-    return { status: 'accepted', traceId };
+    return { status: 'accepted', traceId, cafeId };
   }
 
   async handleMessage(body: any) {
     const traceId = `TRACE-${Date.now()}`;
-    const cafeId = body.cafeId || this.defaultCafeId;
+    const destination = body?.data?.to || body?.payload?.to || body?.to || '';
+    let resolvedCafeId: string | null = null;
+    if (destination) {
+      resolvedCafeId = await this.tenantResolver.resolveTenantId(destination);
+    }
+    const cafeId = body.cafeId || resolvedCafeId || this.defaultCafeId || '';
 
     this.logger.log(`[${traceId}] Publishing message.received event via event bus`);
 

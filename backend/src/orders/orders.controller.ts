@@ -51,6 +51,7 @@ export class OrdersController {
 
   @Get(':id')
   async findOne(@Param('id', ParseUUIDPipe) id: string, @cafeId() cafeId?: string) {
+    if (!cafeId) throw new ForbiddenException('No cafe context');
     return this.ordersService.findOne(id, cafeId);
   }
 
@@ -64,18 +65,21 @@ export class OrdersController {
     @BranchId() branchId?: string,
     @cafeId() cafeId?: string,
   ) {
+    if (!cafeId) throw new ForbiddenException('No cafe context');
     return this.ordersService.updateStatus(id, updateOrderStatusDto, userId, role, branchId, cafeId);
   }
 
   @Post(':id/confirm')
   @HttpCode(HttpStatus.OK)
   async confirm(@Param('id', ParseUUIDPipe) id: string, @cafeId() cafeId?: string) {
-    return this.ordersService.updateStatus(id, { status: OrderStatus.CONFIRMED });
+    if (!cafeId) throw new ForbiddenException('No cafe context');
+    return this.ordersService.updateStatus(id, { status: OrderStatus.CONFIRMED }, undefined, undefined, undefined, cafeId);
   }
 
   @Patch(':id/cancel')
   @HttpCode(HttpStatus.OK)
   async cancel(@Param('id', ParseUUIDPipe) id: string, @Body('reason') reason: string, @cafeId() cafeId?: string) {
+    if (!cafeId) throw new ForbiddenException('No cafe context');
     return this.ordersService.cancel(id, cafeId, reason);
   }
 }

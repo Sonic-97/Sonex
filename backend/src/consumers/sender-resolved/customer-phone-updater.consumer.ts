@@ -37,7 +37,7 @@ export class CustomerPhoneUpdaterConsumer {
         // RULE 3: LidMapping → leave unresolved (resolveSender already tried getContactPhone)
 
         // Step 1 — Try LidMapping table
-        const lidMapping = await this.prisma.lidMapping.findUnique({ where: { lid: lidJid } });
+        const lidMapping = await this.prisma.lidMapping.findFirst({ where: { lid: lidJid } });
 
         if (lidMapping?.phoneJid?.endsWith('@c.us')) {
           const actualPhoneJid = lidMapping.phoneJid;
