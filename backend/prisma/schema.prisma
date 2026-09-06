@@ -123,6 +123,8 @@ model Cafe {
   suppliers              Supplier[]
   dynamicPricingRules    DynamicPricingRule[]
   deliveryZones          DeliveryZone[]
+  aiConfig               CafeAiConfig?
+  promotions             CafePromotion[]
 
   @@index([ownerCode])
   @@index([phone])
@@ -686,6 +688,9 @@ model OrderItem {
   unitPrice       Decimal @db.Decimal
   notes           String?
   selectedOptions Json    @default("[]") @map("selected_options")
+  productNameSnapshot String? @map("product_name_snapshot")
+  variantNameSnapshot String? @map("variant_name_snapshot")
+  addonPricesSnapshot Json    @default("[]") @map("addon_prices_snapshot")
   order           Order   @relation(fields: [orderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   product         Product @relation(fields: [productId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -2784,4 +2789,49 @@ model CafeWhatsAppAccount {
   cafe                Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
 
   @@map("cafe_whatsapp_accounts")
+}
+
+model CafeAiConfig {
+  id                      String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                  String   @unique @map("cafe_id")
+  botName                 String   @default("مساعد سونيك الذكي") @map("bot_name")
+  tone                    String   @default("EGYPTIAN_CASUAL") // EGYPTIAN_CASUAL, PROFESSIONAL, FAST_CONCISE
+  welcomeMessage          String?  @map("welcome_message")
+  customInstructions     String?  @map("custom_instructions") // strictly bounded, cannot override truth
+  deliveryNotes           String?  @map("delivery_notes")
+  openingHoursNotes       String?  @map("opening_hours_notes")
+  enableRecommendations   Boolean  @default(true) @map("enable_recommendations")
+  maxUpsellsPerSession    Int      @default(1) @map("max_upsells_per_session")
+  configVersion           Int      @default(1) @map("config_version")
+  createdAt               DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt               DateTime @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  cafe                    Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@map("cafe_ai_configs")
+}
+
+model CafePromotion {
+  id               String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId           String    @map("cafe_id")
+  name             String
+  description      String?
+  discountType     String    @default("PERCENTAGE") @map("discount_type") // PERCENTAGE, FIXED_AMOUNT, FREE_ITEM
+  discountValue    Decimal   @default(0) @db.Decimal(10, 2) @map("discount_value")
+  eligibleProductIds Json    @default("[]") @map("eligible_product_ids")
+  freeProductId    String?   @map("free_product_id")
+  minimumOrder     Decimal   @default(0) @db.Decimal(10, 2) @map("minimum_order")
+  startAt          DateTime  @default(now()) @db.Timestamptz(6) @map("start_at")
+  endAt            DateTime? @db.Timestamptz(6) @map("end_at")
+  enabled          Boolean   @default(true)
+  usageLimit       Int?      @map("usage_limit")
+  usedCount        Int       @default(0) @map("used_count")
+  createdAt        DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt        DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  cafe             Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, enabled])
+  @@index([cafeId, startAt, endAt])
+  @@map("cafe_promotions")
 }
