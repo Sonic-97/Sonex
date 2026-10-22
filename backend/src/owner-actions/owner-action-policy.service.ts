@@ -32,6 +32,11 @@ const DEFINITIONS: Record<OwnerActionType, OwnerActionDefinition> = {
   CREATE_PRODUCT_WITH_RECIPE: { risk: 'LOW', reversibility: 'REVERSIBLE', allowedRoles: ['OWNER', 'MANAGER'], permission: 'PRODUCT_CREATE', branchRequired: false, executable: true, tool: 'createApprovedProductWithRecipe' },
   RECORD_INVENTORY_PURCHASE: { risk: 'MEDIUM', reversibility: 'PARTIALLY_REVERSIBLE', allowedRoles: ['OWNER', 'MANAGER'], permission: 'INVENTORY_PURCHASE_RECORD', branchRequired: true, executable: true, tool: 'recordApprovedInventoryPurchase' },
   RECORD_STOCK_WASTE: { risk: 'MEDIUM', reversibility: 'PARTIALLY_REVERSIBLE', allowedRoles: ['OWNER', 'MANAGER'], permission: 'INVENTORY_WASTE_RECORD', branchRequired: true, executable: true, tool: 'recordApprovedStockWaste' },
+  DELETE_PRODUCT: { risk: 'HIGH', reversibility: 'PARTIALLY_REVERSIBLE', allowedRoles: ['OWNER'], permission: 'PRODUCT_DELETE', branchRequired: false, executable: true, tool: 'deleteApprovedProduct' },
+  UPDATE_PRODUCT_RECIPE: { risk: 'MEDIUM', reversibility: 'REVERSIBLE', allowedRoles: ['OWNER', 'MANAGER'], permission: 'PRODUCT_RECIPE_UPDATE', branchRequired: false, executable: true, tool: 'updateApprovedProductRecipe' },
+  CREATE_CATEGORY: { risk: 'LOW', reversibility: 'REVERSIBLE', allowedRoles: ['OWNER', 'MANAGER'], permission: 'CATEGORY_CREATE', branchRequired: false, executable: true, tool: 'createApprovedCategory' },
+  DELETE_CATEGORY: { risk: 'MEDIUM', reversibility: 'REVERSIBLE', allowedRoles: ['OWNER'], permission: 'CATEGORY_DELETE', branchRequired: false, executable: true, tool: 'deleteApprovedCategory' },
+  CREATE_ACTIVE_PROMOTION: { risk: 'MEDIUM', reversibility: 'REVERSIBLE', allowedRoles: ['OWNER'], permission: 'PROMOTION_CREATE', branchRequired: false, executable: true, tool: 'createApprovedPromotion' },
 };
 
 const ROLE_PERMISSIONS: Record<string, string[]> = {
@@ -45,6 +50,8 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'PRODUCT_CREATE',
     'INVENTORY_PURCHASE_RECORD',
     'INVENTORY_WASTE_RECORD',
+    'PRODUCT_RECIPE_UPDATE',
+    'CATEGORY_CREATE',
   ],
 };
 

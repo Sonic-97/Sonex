@@ -375,11 +375,57 @@ export default function RecipeBuilder() {
                 </div>
               </div>
 
-              {/* Version History Sidebar */}
-              <div className="w-64 shrink-0 border border-slate-200 rounded-3xl bg-white p-5 shadow-sm self-start">
-                <h3 className="font-black text-[#1E1513] flex items-center gap-2 mb-6">
-                  <History className="w-5 h-5 text-slate-400" /> سجل الإصدارات
-                </h3>
+              {/* Dual Cost & Version History Sidebar */}
+              <div className="w-80 shrink-0 flex flex-col gap-5 self-start">
+                {/* Dual Costing Card: Dine-in vs Takeaway */}
+                <div className="border border-slate-200 rounded-3xl bg-white p-5 shadow-sm">
+                  <h3 className="font-black text-[#1E1513] flex items-center gap-2 mb-4 text-base">
+                    <Coffee className="w-5 h-5 text-[#8C6239]" />
+                    حساب تكلفة الكوب الذكية
+                  </h3>
+                  <div className="space-y-3">
+                    {/* Dine-In Mode */}
+                    <div className="p-3.5 rounded-2xl bg-amber-50/70 border border-amber-200/80">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-sm text-amber-950 flex items-center gap-1.5">
+                          ☕ تقديم صالة (Dine-In)
+                        </span>
+                        <span className="font-black text-amber-900 font-mono text-base">
+                          {totalCost.toFixed(2)} ج.م
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-800/80 leading-relaxed">
+                        أكواب بورسلين وزجاج مستدامة — <strong>صفر استهلاك للتغليف</strong> (لا يتم خصم أكواب ورقية أو أغطية من المخزن).
+                      </p>
+                    </div>
+
+                    {/* Takeaway Mode */}
+                    <div className="p-3.5 rounded-2xl bg-sky-50/70 border border-sky-200/80">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-bold text-sm text-sky-950 flex items-center gap-1.5">
+                          🥤 تقديم سفري (Takeaway)
+                        </span>
+                        <span className="font-black text-sky-900 font-mono text-base">
+                          {(totalCost + 3.50).toFixed(2)} ج.م
+                        </span>
+                      </div>
+                      <p className="text-xs text-sky-800/80 leading-relaxed">
+                        خامات المشروب + (كوب كرتون + غطاء + ماسك حراري ≈ 3.50 ج.م) — <strong>تُخصم من المخزن تلقائياً</strong>.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500 font-medium">
+                    <span>الربط التلقائي بالمخزن:</span>
+                    <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">مفعل لحظياً ✔</span>
+                  </div>
+                </div>
+
+                {/* Version History Sidebar */}
+                <div className="border border-slate-200 rounded-3xl bg-white p-5 shadow-sm">
+                  <h3 className="font-black text-[#1E1513] flex items-center gap-2 mb-6">
+                    <History className="w-5 h-5 text-slate-400" /> سجل الإصدارات
+                  </h3>
                 <div className="space-y-4">
                   {selectedRecipe.versions.length === 0 ? (
                     <div className="text-slate-400 text-sm text-center py-4">لم يتم حفظ أي إصدار حتى الآن.</div>
@@ -395,6 +441,7 @@ export default function RecipeBuilder() {
                   )}
                 </div>
               </div>
+            </div>
 
             </div>
           </>

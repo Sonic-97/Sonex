@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ContextBuilderService } from '../commerce-brain/context-builder.service';
 import { CommerceBrainService } from '../commerce-brain/commerce-brain.service';
@@ -6,9 +6,12 @@ import { ActionPlannerService } from '../action-planner/action-planner.service';
 import { ActionExecutorService } from '../action-executor/action-executor.service';
 import { CustomerApiSessionService } from './customer-api-session.service';
 import { CustomerApiAuthGuard } from './customer-api-auth.guard';
+import { CustomerOtpService } from './customer-otp.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { BuildContextInput } from '../commerce-brain/commerce-brain.types';
 import {
   CustomerLoginRequest, CustomerLoginResponse,
+  CustomerOtpRequest, CustomerOtpResponse,
   CustomerMessageRequest, CustomerConfirmRequest,
   CustomerApiResponse, CustomerOrderResponse, CustomerOrderItem,
   CustomerRecommendation, AuthPayload,
@@ -31,14 +34,58 @@ export class CustomerApiService {
     private readonly planner: ActionPlannerService,
     private readonly executor: ActionExecutorService,
     private readonly session: CustomerApiSessionService,
+    private readonly otp: CustomerOtpService,
+    private readonly whatsapp: WhatsappService,
   ) {}
 
+  async requestOtp(body: CustomerOtpRequest): Promise<CustomerOtpResponse> {
+    const customer = await this.prisma.customer.findFirst({
+      where: { phone: body.phone, cafeId: body.cafeId },
+      select: { id: true, phone: true, phoneJid: true, lidJid: true, lastKnownJid: true },
+    });
+    if (!customer) {
+      throw new NotFoundException('Customer not found for this cafe');
+    }
+
+    const issued = this.otp.issue(body.cafeId, body.phone);
+    if (issued.ok === false) {
+      throw new HttpException(
+        `Please wait ${issued.retryAfterSeconds}s before requesting a new code`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    const targetJid =
+      customer.phoneJid || customer.lidJid || customer.lastKnownJid || customer.phone;
+    const message = `رمز الدخول الخاص بك في سونيك هو: ${issued.code}\nصالح لمدة 5 دقائق.`;
+    try {
+      await this.whatsapp.sendMessage(targetJid, message, body.cafeId);
+    } catch (err) {
+      this.logger.error(`Failed to send OTP: ${(err as Error).message}`);
+    }
+
+    const response: CustomerOtpResponse = {
+      success: true,
+      expiresInSeconds: issued.expiresInSeconds,
+    };
+    if (process.env.NODE_ENV !== 'production') {
+      response.devCode = issued.code;
+    }
+    return response;
+  }
+
   async login(body: CustomerLoginRequest): Promise<CustomerLoginResponse> {
+    if (!body.otp || !/^\d{6}$/.test(body.otp)) {
+      throw new UnauthorizedException('A valid OTP is required');
+    }
     const customer = await this.prisma.customer.findFirst({
       where: { phone: body.phone, cafeId: body.cafeId },
     });
     if (!customer) {
       throw new NotFoundException('Customer not found for this cafe');
+    }
+    if (!this.otp.verify(body.cafeId, body.phone, body.otp)) {
+      throw new UnauthorizedException('Invalid or expired OTP');
     }
     const token = generateToken();
     const payload: AuthPayload = { customerId: customer.id, cafeId: customer.cafeId };

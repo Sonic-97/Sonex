@@ -51,6 +51,8 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/owner/settlements', label: 'التسويات', icon: Wallet },
       { href: '/owner/notifications', label: 'الإشعارات', icon: AlertTriangle },
       { href: '/owner/whatsapp', label: 'ربط واتساب', icon: MessageCircle },
+      { href: '/owner/settings/ai', label: 'تخصيص الـ AI', icon: Bot },
+      { href: '/owner/settings/payments', label: 'الدفع الإلكتروني (InstaPay)', icon: Wallet },
       { href: '/owner/settings', label: 'الإعدادات', icon: Settings },
     ],
   },

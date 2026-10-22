@@ -125,6 +125,8 @@ model Cafe {
   deliveryZones          DeliveryZone[]
   aiConfig               CafeAiConfig?
   promotions             CafePromotion[]
+  paymentConfig          CafePaymentConfig?
+  digitalPaymentTransactions DigitalPaymentTransaction[]
 
   @@index([ownerCode])
   @@index([phone])
@@ -661,6 +663,9 @@ model Order {
   debtRecords          Debt[]
   paymentLogs          PaymentLog[]
   payments             Payment[]
+  digitalPaymentTransactions DigitalPaymentTransaction[]
+  playStationSessionId String?                     @map("playstation_session_id")
+  playStationSession   PlayStationSession?         @relation(fields: [playStationSessionId], references: [id], onDelete: SetNull)
 
   @@unique([cafeId, code])
   @@unique([cafeId, externalId])
@@ -1548,10 +1553,14 @@ model PlayStationPricing {
 }
 
 model PlayStationDevice {
-  id        String               @id @default(dbgenerated("(gen_random_uuid())::text"))
-  cafeId    String               @map("cafe_id")
-  name      String
-  active    Boolean              @default(true)
+  id              String               @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId          String               @map("cafe_id")
+  name            String
+  deviceType      String               @default("PS5") @map("device_type")
+  hourlyRate      Decimal?             @map("hourly_rate") @db.Decimal(10, 2)
+  multiHourlyRate Decimal?             @map("multi_hourly_rate") @db.Decimal(10, 2)
+  notes           String?
+  active          Boolean              @default(true)
   createdAt DateTime             @default(now()) @db.Timestamptz(6)
   cafe      Cafe                 @relation(fields: [cafeId], references: [id], onDelete: Cascade)
   sessions  PlayStationSession[]
@@ -1577,8 +1586,14 @@ model PlayStationSession {
   status            String            @default("Pending Free Time")
   closedById        String?           @map("closed_by_id")
   paidAt            DateTime?         @db.Timestamptz(6)
-  billableStartTime DateTime?         @map("billable_start_time") @db.Timestamptz(6)
-  freePeriodEndTime DateTime?         @map("free_period_end_time") @db.Timestamptz(6)
+  billableStartTime     DateTime?         @map("billable_start_time") @db.Timestamptz(6)
+  freePeriodEndTime     DateTime?         @map("free_period_end_time") @db.Timestamptz(6)
+  isPaused              Boolean           @default(false) @map("is_paused")
+  totalPauseMinutes     Int               @default(0) @map("total_pause_minutes")
+  lastPausedAt          DateTime?         @map("last_paused_at") @db.Timestamptz(6)
+  targetDurationMinutes Int?              @map("target_duration_minutes")
+  notes                 String?
+  orders                Order[]
   cafe              Cafe              @relation(fields: [cafeId], references: [id], onDelete: Cascade)
   closedBy          Staff?            @relation("PSClosedBy", fields: [closedById], references: [id], onDelete: Restrict)
   device            PlayStationDevice @relation(fields: [deviceId], references: [id], onDelete: Cascade)
@@ -2834,4 +2849,70 @@ model CafePromotion {
   @@index([cafeId, enabled])
   @@index([cafeId, startAt, endAt])
   @@map("cafe_promotions")
+}
+
+
+model CafePaymentConfig {
+  id                    String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                String   @unique @map("cafe_id")
+  instapayEnabled       Boolean  @default(false) @map("instapay_enabled")
+  instapayAddress       String?  @map("instapay_address")
+  instapayAccountName   String?  @map("instapay_account_name")
+  
+  vodafoneCashEnabled   Boolean  @default(false) @map("vodafone_cash_enabled")
+  vodafoneCashNumber    String?  @map("vodafone_cash_number")
+  
+  orangeCashEnabled     Boolean  @default(false) @map("orange_cash_enabled")
+  orangeCashNumber      String?  @map("orange_cash_number")
+  
+  etisalatCashEnabled   Boolean  @default(false) @map("etisalat_cash_enabled")
+  etisalatCashNumber    String?  @map("etisalat_cash_number")
+  
+  wePayEnabled          Boolean  @default(false) @map("we_pay_enabled")
+  wePayNumber           String?  @map("we_pay_number")
+  
+  onlineCardEnabled     Boolean  @default(false) @map("online_card_enabled")
+  paymobApiKey          String?  @map("paymob_api_key")
+  paymobIntegrationId   String?  @map("paymob_integration_id")
+  paymobIframeId        String?  @map("paymob_iframe_id")
+  paymobHmacSecret      String?  @map("paymob_hmac_secret")
+  
+  cashOnDeliveryEnabled Boolean  @default(true) @map("cash_on_delivery_enabled")
+  
+  instructionsArabic    String?  @map("instructions_arabic")
+  createdAt             DateTime @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt             DateTime @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  cafe                  Cafe     @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+
+  @@map("cafe_payment_configs")
+}
+
+model DigitalPaymentTransaction {
+  id                    String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  cafeId                String    @map("cafe_id")
+  branchId              String?   @map("branch_id")
+  orderId               String    @map("order_id")
+  customerPhone         String    @map("customer_phone")
+  provider              String    // INSTAPAY | VODAFONE_CASH | ORANGE_CASH | ETISALAT_CASH | WE_PAY | PAYMOB | FAWRY
+  amount                Decimal   @db.Decimal(10, 2)
+  currency              String    @default("EGP")
+  status                String    @default("PENDING") // PENDING | VERIFYING | PAID | FAILED | REFUNDED
+  referenceNumber       String?   @map("reference_number")
+  qrData                String?   @map("qr_data")
+  paymentUrl            String?   @map("payment_url")
+  verifiedAt            DateTime? @map("verified_at") @db.Timestamptz(6)
+  verifiedById          String?   @map("verified_by_id")
+  notes                 String?
+  metadata              Json      @default("{}")
+  createdAt             DateTime  @default(now()) @db.Timestamptz(6) @map("created_at")
+  updatedAt             DateTime  @updatedAt @db.Timestamptz(6) @map("updated_at")
+
+  cafe                  Cafe      @relation(fields: [cafeId], references: [id], onDelete: Cascade)
+  order                 Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([cafeId, status])
+  @@index([orderId])
+  @@index([referenceNumber])
+  @@map("digital_payment_transactions")
 }

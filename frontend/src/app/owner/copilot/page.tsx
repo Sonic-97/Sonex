@@ -112,11 +112,13 @@ interface ChatMessage {
 }
 
 const FALLBACK_QUESTIONS = [
+  'عايز اعمل منيو للكافيه بتاعي',
+  'إيه اللي أنا مش واخد بالي منه في الكافيه؟',
+  'احسبلي تكلفة سبانش لاتيه',
+  'كيلو البن زاد بقى بـ 600 جنيه، شوف المنتجات اللي اتأثرت',
+  'اشتريت 10 كيلو بن بـ 5000 جنيه من الحاج أحمد كاش من الدرج',
   'المبيعات عملت إيه النهارده؟',
-  'إيه أهم 3 مشاكل محتاجة تدخلي؟',
   'إيه المنتجات الأعلى ربحية؟',
-  'قارن الفروع الأسبوع ده.',
-  'إيه المخزون الحرج؟',
 ];
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -570,6 +572,11 @@ const ACTION_LABELS: Record<string, string> = {
   ENABLE_PRODUCT: 'تفعيل منتج في كل الفروع',
   UPDATE_MINIMUM_STOCK_LEVEL: 'تعديل الحد الأدنى للمخزون',
   CREATE_APPROVED_EXPENSE: 'إنشاء مصروف معتمد',
+  DELETE_PRODUCT: 'حذف صنف من المنيو',
+  UPDATE_PRODUCT_RECIPE: 'تعديل مقادير ووصفة صنف',
+  CREATE_CATEGORY: 'إضافة قسم جديد للمنيو',
+  DELETE_CATEGORY: 'حذف قسم من المنيو',
+  CREATE_ACTIVE_PROMOTION: 'تفعيل عرض وخصم ترويجي',
   CREATE_OFFER_DRAFT: 'مسودة عرض',
   CREATE_CAMPAIGN_DRAFT: 'مسودة حملة',
   CREATE_RESTOCK_PROPOSAL: 'مقترح إعادة تخزين',

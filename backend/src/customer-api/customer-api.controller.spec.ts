@@ -5,8 +5,11 @@ import { CustomerApiController } from './customer-api.controller';
 import { CustomerApiService } from './customer-api.service';
 import { CustomerApiAuthGuard } from './customer-api-auth.guard';
 import { CustomerApiSessionService } from './customer-api-session.service';
+import { CustomerOtpService } from './customer-otp.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 let sessionService: CustomerApiSessionService;
+let otpService: CustomerOtpService;
 import { PrismaService } from '../prisma/prisma.service';
 import { ContextBuilderService } from '../commerce-brain/context-builder.service';
 import { CommerceBrainService } from '../commerce-brain/commerce-brain.service';
@@ -101,6 +104,8 @@ describe('CustomerApiController', () => {
         CustomerApiService,
         CustomerApiAuthGuard,
         CustomerApiSessionService,
+        CustomerOtpService,
+        { provide: WhatsappService, useValue: { sendMessage: jest.fn().mockResolvedValue({ success: true, provider: 'test' }) } },
         { provide: PrismaService, useValue: prisma },
         { provide: ContextBuilderService, useValue: contextBuilder },
         { provide: CommerceBrainService, useValue: commerceBrain },
@@ -112,11 +117,13 @@ describe('CustomerApiController', () => {
     app = module.createNestApplication();
     await app.init();
     sessionService = app.get(CustomerApiSessionService);
+    otpService = app.get(CustomerOtpService);
   });
 
   beforeEach(() => {
     CustomerApiAuthGuard.clearTokens();
     sessionService.clearAll();
+    otpService.reset();
   });
 
   afterAll(async () => {
@@ -124,28 +131,58 @@ describe('CustomerApiController', () => {
   });
 
   async function loginAs(phone: string, cafeId: string): Promise<string> {
+    otpService.reset();
+    const otpRes = await request(app.getHttpServer())
+      .post('/customer/auth/request-otp')
+      .send({ phone, cafeId })
+      .expect(200);
     const res = await request(app.getHttpServer())
       .post('/customer/auth/login')
-      .send({ phone, cafeId })
+      .send({ phone, cafeId, otp: otpRes.body.devCode })
       .expect(200);
     return res.body.token;
   }
 
   // ── Authentication ──
 
-  it('authenticates customer with valid phone and cafe', async () => {
+  it('requests an OTP then authenticates customer with a valid code', async () => {
+    const otpRes = await request(app.getHttpServer())
+      .post('/customer/auth/request-otp')
+      .send({ phone: '01000000000', cafeId: 'cafe-1' })
+      .expect(200);
+    expect(otpRes.body.devCode).toBeDefined();
+
     const res = await request(app.getHttpServer())
       .post('/customer/auth/login')
-      .send({ phone: '01000000000', cafeId: 'cafe-1' })
+      .send({ phone: '01000000000', cafeId: 'cafe-1', otp: otpRes.body.devCode })
       .expect(200);
     expect(res.body.token).toBeDefined();
     expect(res.body.customerId).toBe('cust-1');
   });
 
+  it('rejects login without an OTP', async () => {
+    await request(app.getHttpServer())
+      .post('/customer/auth/login')
+      .send({ phone: '01000000000', cafeId: 'cafe-1' })
+      .expect(401);
+  });
+
+  it('rejects an incorrect OTP', async () => {
+    await request(app.getHttpServer())
+      .post('/customer/auth/request-otp')
+      .send({ phone: '01000000000', cafeId: 'cafe-1' })
+      .expect(200);
+
+    await request(app.getHttpServer())
+      .post('/customer/auth/login')
+      .send({ phone: '01000000000', cafeId: 'cafe-1', otp: '000000' })
+      .expect(401);
+  });
+
   it('rejects invalid customer credentials', async () => {
     await request(app.getHttpServer())
       .post('/customer/auth/login')
-      .send({ phone: 'wrong', cafeId: 'cafe-1' })
+      .send({ phone: 'wrong', cafeId: 'cafe-1', otp: '000000' })
       .expect(404);
   });
 

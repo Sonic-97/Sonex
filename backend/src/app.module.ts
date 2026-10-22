@@ -56,8 +56,6 @@ import { TenantContextService } from './common/tenant-context.service';
 import { CommonModule } from './common/common.module';
 import { CrashRecoveryModule } from './crash-recovery/crash-recovery.module';
 import { ConsumersModule } from './consumers/consumers.module';
-import { MessagingModule } from './messaging/messaging.module';
-import { TelegramModule } from './messaging/telegram/telegram.module';
 import { DebugModule } from './debug/debug.module';
 import { CoffeeOrderModule } from './coffee-order/coffee-order.module';
 import { UnifiedOrdersModule } from './unified-orders/unified-orders.module';
@@ -80,7 +78,6 @@ import { MerchantCommunicationModule } from './merchant-communication/merchant-c
 import { TrustReputationModule } from './trust-reputation/trust-reputation.module';
 import { ActionPlannerModule } from './action-planner/action-planner.module';
 import { ActionExecutorModule } from './action-executor/action-executor.module';
-import { TelegramAdapterModule } from './telegram-adapter/telegram-adapter.module';
 import { MerchantPortalModule } from './merchant-portal/merchant-portal.module';
 import { DriverApiModule } from './driver-api/driver-api.module';
 import { CustomerApiModule } from './customer-api/customer-api.module';
@@ -157,8 +154,6 @@ import { TransactionalOutboxModule } from './outbox/transactional-outbox.module'
     CommonModule,
     ReplyEngineModule,
     ObservabilityModule,
-    MessagingModule,
-    TelegramModule,
     DebugModule,
     UnifiedOrdersModule,
     InventoryPipelineModule,
@@ -174,7 +169,6 @@ import { TransactionalOutboxModule } from './outbox/transactional-outbox.module'
     TrustReputationModule,
     ActionPlannerModule,
     ActionExecutorModule,
-    TelegramAdapterModule,
     MerchantPortalModule,
     DriverApiModule,
     CustomerApiModule,

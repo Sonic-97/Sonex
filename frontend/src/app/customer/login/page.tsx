@@ -9,16 +9,46 @@ export default function CustomerLoginPage() {
   const router = useRouter();
   const [phone, setPhone] = useState('');
   const [cafeId, setCafeId] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [info, setInfo] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleRequestOtp = async () => {
+    setError('');
+    setInfo('');
+    if (!phone || !cafeId) {
+      setError('أدخل رقم الهاتف ومعرف الكافيه أولاً');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data } = await customerApi.post('/customer/auth/request-otp', { phone, cafeId });
+      setOtpSent(true);
+      setInfo('تم إرسال رمز التحقق عبر واتساب');
+      if (data?.devCode) {
+        setOtp(data.devCode);
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'فشل إرسال رمز التحقق');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
+    if (!otpSent) {
+      await handleRequestOtp();
+      return;
+    }
+
+    setLoading(true);
     try {
-      const { data } = await customerApi.post('/customer/auth/login', { phone, cafeId });
+      const { data } = await customerApi.post('/customer/auth/login', { phone, cafeId, otp });
       sessionStorage.setItem('customer_token', data.token);
       sessionStorage.setItem('customer_id', data.customerId);
       sessionStorage.setItem('customer_name', data.name);
@@ -48,7 +78,8 @@ export default function CustomerLoginPage() {
               onChange={(e) => setPhone(e.target.value)}
               placeholder="05XXXXXXXX"
               required
-              className="w-full px-4 py-3 rounded-xl border border-[#E8E1D9] bg-[#f7f7f5] text-sm focus:outline-none focus:ring-2 focus:ring-[#8c6239]/20 focus:border-[#8c6239] transition-all"
+              disabled={otpSent}
+              className="w-full px-4 py-3 rounded-xl border border-[#E8E1D9] bg-[#f7f7f5] text-sm focus:outline-none focus:ring-2 focus:ring-[#8c6239]/20 focus:border-[#8c6239] transition-all disabled:opacity-60"
             />
           </div>
           <div>
@@ -59,9 +90,31 @@ export default function CustomerLoginPage() {
               onChange={(e) => setCafeId(e.target.value)}
               placeholder="cafe-1"
               required
-              className="w-full px-4 py-3 rounded-xl border border-[#E8E1D9] bg-[#f7f7f5] text-sm focus:outline-none focus:ring-2 focus:ring-[#8c6239]/20 focus:border-[#8c6239] transition-all"
+              disabled={otpSent}
+              className="w-full px-4 py-3 rounded-xl border border-[#E8E1D9] bg-[#f7f7f5] text-sm focus:outline-none focus:ring-2 focus:ring-[#8c6239]/20 focus:border-[#8c6239] transition-all disabled:opacity-60"
             />
           </div>
+
+          {otpSent && (
+            <div>
+              <label className="block text-xs font-bold text-gray-600 mb-1.5">رمز التحقق</label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={otp}
+                onChange={(e) => setOtp(e.target.value)}
+                placeholder="6 أرقام"
+                required
+                className="w-full px-4 py-3 rounded-xl border border-[#E8E1D9] bg-[#f7f7f5] text-sm tracking-widest text-center focus:outline-none focus:ring-2 focus:ring-[#8c6239]/20 focus:border-[#8c6239] transition-all"
+              />
+            </div>
+          )}
+
+          {info && (
+            <div className="bg-green-50 text-green-700 text-sm p-3 rounded-xl border border-green-200">
+              {info}
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-50 text-red-700 text-sm p-3 rounded-xl border border-red-200">
@@ -74,8 +127,19 @@ export default function CustomerLoginPage() {
             disabled={loading}
             className="w-full bg-[#8c6239] text-white rounded-xl py-3 font-bold text-sm hover:bg-[#6f4d2d] transition-all active:scale-[0.98] disabled:opacity-50"
           >
-            {loading ? '...' : 'تسجيل الدخول'}
+            {loading ? '...' : otpSent ? 'تسجيل الدخول' : 'إرسال رمز التحقق'}
           </button>
+
+          {otpSent && (
+            <button
+              type="button"
+              onClick={handleRequestOtp}
+              disabled={loading}
+              className="w-full text-xs text-[#8c6239] hover:underline disabled:opacity-50"
+            >
+              إعادة إرسال الرمز
+            </button>
+          )}
         </form>
       </div>
     </div>

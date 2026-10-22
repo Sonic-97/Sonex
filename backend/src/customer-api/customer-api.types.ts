@@ -1,6 +1,18 @@
 export interface CustomerLoginRequest {
   phone: string;
   cafeId: string;
+  otp?: string;
+}
+
+export interface CustomerOtpRequest {
+  phone: string;
+  cafeId: string;
+}
+
+export interface CustomerOtpResponse {
+  success: boolean;
+  expiresInSeconds: number;
+  devCode?: string;
 }
 
 export interface CustomerLoginResponse {

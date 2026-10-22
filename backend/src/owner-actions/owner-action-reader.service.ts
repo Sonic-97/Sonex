@@ -289,6 +289,115 @@ export class OwnerActionReaderService {
       };
     }
 
+    if (actionType === 'DELETE_PRODUCT') {
+      if (!resourceId) throw new BadRequestException('A verified product id is required.');
+      const product = await client.product.findFirst({
+        where: { id: resourceId, cafeId },
+        select: { id: true, name: true, price: true, active: true },
+      });
+      if (!product) throw new NotFoundException('Product not found in this cafe.');
+      const orderCount = client.orderItem?.count ? await client.orderItem.count({
+        where: { productId: product.id },
+      }) : 0;
+      return {
+        resource: { type: 'Product', id: product.id, name: product.name },
+        currentState: { id: product.id, name: product.name, price: Number(product.price), active: product.active, orderCount },
+        impact: {
+          financial: `Product "${product.name}" will be removed from future sales. Historical revenue of ${orderCount} past order(s) remains preserved.`,
+          operational: orderCount > 0 ? 'Product will be archived/deactivated to preserve past sales data.' : 'Product and associated recipe records will be permanently removed.',
+          customer: 'Product will immediately disappear from WhatsApp bot, digital menu, and POS.',
+          whatWillNotChange: ['Past orders', 'Financial accounting totals', 'Inventory stock levels'],
+        },
+        warnings: orderCount > 0 ? ['Product has past orders; safe archival will be performed instead of hard delete to protect audit logs.'] : ['Action is permanent once approved.'],
+        branchNames,
+      };
+    }
+
+    if (actionType === 'UPDATE_PRODUCT_RECIPE') {
+      if (!resourceId) throw new BadRequestException('A verified product id is required.');
+      const product = await client.product.findFirst({
+        where: { id: resourceId, cafeId },
+        include: { recipeIngredients: { include: { inventory: true } } },
+      });
+      if (!product) throw new NotFoundException('Product not found in this cafe.');
+      const proposedIngredients = Array.isArray(proposedState.ingredients) ? proposedState.ingredients : [];
+      const currentIngredients = product.recipeIngredients.map((ri: any) => ({
+        name: ri.inventory?.itemName || 'خامة',
+        quantity: Number(ri.quantity),
+        unit: ri.unit,
+      }));
+      const newEstimatedCost = Number(proposedState.cost || 0);
+      return {
+        resource: { type: 'Recipe', id: product.id, name: `Recipe for ${product.name}` },
+        currentState: {
+          productId: product.id,
+          name: product.name,
+          currentCost: Number(product.cost),
+          ingredients: currentIngredients,
+        },
+        impact: {
+          financial: `Recipe cost updates from ${round(Number(product.cost))} EGP to ${round(newEstimatedCost)} EGP. New unit margin: ${round(Number(product.price) - newEstimatedCost)} EGP.`,
+          operational: `${proposedIngredients.length} ingredient(s) mapped for future automated inventory deduction upon order creation.`,
+          whatWillNotChange: ['Product selling price', 'Past inventory deductions'],
+        },
+        warnings: newEstimatedCost >= Number(product.price) ? ['New recipe cost exceeds or equals current selling price!'] : [],
+        branchNames,
+      };
+    }
+
+    if (actionType === 'CREATE_CATEGORY') {
+      const name = String(proposedState.name || 'قسم جديد');
+      return {
+        resource: { type: 'Category', id: resourceId, name },
+        currentState: { exists: false },
+        impact: {
+          operational: `New category "${name}" will be created in the menu catalog.`,
+          customer: 'Category will be available for organizing items in customer menu.',
+          whatWillNotChange: ['Existing products', 'Existing categories'],
+        },
+        warnings: [],
+        branchNames,
+      };
+    }
+
+    if (actionType === 'DELETE_CATEGORY') {
+      if (!resourceId) throw new BadRequestException('Category id is required.');
+      const category = await client.productCategory.findFirst({
+        where: { id: resourceId, cafeId },
+        include: { products: { select: { id: true, name: true } } },
+      });
+      if (!category) throw new NotFoundException('Category not found.');
+      return {
+        resource: { type: 'Category', id: category.id, name: category.name },
+        currentState: { id: category.id, name: category.name, productsCount: category.products.length },
+        impact: {
+          operational: `Category "${category.name}" will be deleted. ${category.products.length} product(s) will be unassigned.`,
+          whatWillNotChange: ['Product existence', 'Order history'],
+        },
+        warnings: category.products.length > 0 ? [`This category contains ${category.products.length} product(s) which will become uncategorized.`] : [],
+        branchNames,
+      };
+    }
+
+    if (actionType === 'CREATE_ACTIVE_PROMOTION') {
+      const name = String(proposedState.name || 'عرض ترويجي');
+      const discountType = String(proposedState.discountType || 'PERCENTAGE');
+      const discountValue = Number(proposedState.discountValue || 0);
+      const minimumOrder = Number(proposedState.minimumOrder || 0);
+      return {
+        resource: { type: 'Promotion', id: resourceId, name },
+        currentState: { exists: false },
+        impact: {
+          financial: `Discount of ${discountValue}${discountType === 'PERCENTAGE' ? '%' : ' EGP'} with minimum order ${minimumOrder} EGP.`,
+          operational: 'Promotion becomes immediately active for WhatsApp bot customers and ordering flows.',
+          customer: 'Eligible customers will receive this promotion automatically when placing orders.',
+          whatWillNotChange: ['Past orders', 'Base product prices'],
+        },
+        warnings: ['Active promotions apply automatically to qualifying customer orders.'],
+        branchNames,
+      };
+    }
+
     return this.draftSnapshot(actionType, branchNames, proposedState);
   }
 

@@ -34,8 +34,28 @@ export class BossIntegrationService {
 
   async placeBossCafeOrder(dto: BossCafeOrderDto): Promise<Result<BossOrderExecutionResult>> {
     try {
-      // Step 1: Calculate Totals
-      const subtotal = dto.items.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
+      // Step 1: Resolve server-side prices (never trust client-supplied prices)
+      const products = await this.prisma.product.findMany({
+        where: { cafeId: dto.cafeId, id: { in: dto.items.map((i) => i.productId) } },
+        select: { id: true, name: true, price: true },
+      });
+      const productMap = new Map(products.map((p) => [p.id, p]));
+
+      const pricedItems: Array<{ productId: string; productName: string; quantity: number; unitPrice: number }> = [];
+      for (const item of dto.items) {
+        const product = productMap.get(item.productId);
+        if (!product) {
+          return Result.fail(`Product not found for this cafe: ${item.productId}`);
+        }
+        pricedItems.push({
+          productId: item.productId,
+          productName: product.name,
+          quantity: item.quantity,
+          unitPrice: Number(product.price),
+        });
+      }
+
+      const subtotal = pricedItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
       let deliveryFee = 0;
       let resolvedZone: any = null;
 
@@ -97,7 +117,7 @@ export class BossIntegrationService {
       const orderData = (unifiedOrderRes as any).data || unifiedOrderRes;
 
       // Step 4: Process Recipe BOM Raw Material Deductions
-      const bomItems = dto.items.map((i) => ({
+      const bomItems = pricedItems.map((i) => ({
         productId: i.productId,
         productName: i.productName,
         quantity: i.quantity,

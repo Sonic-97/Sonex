@@ -78,7 +78,7 @@ export default function BaristaDashboard() {
       setOrders((prev) => {
         const map = new Map(prev.map((o) => [o.id, o]));
         for (const order of Object.values(storeOrders) as any[]) {
-          if (order.sourceType === 'WHATSAPP_ORDER' || order.sourceType === 'TELEGRAM_ORDER' || order.source === 'TELEGRAM' || order.type === 'WHATSAPP') {
+          if (order.sourceType === 'WHATSAPP_ORDER' || order.type === 'WHATSAPP') {
             map.set(order.id, {
               id: order.id,
               code: order.code || order.id.slice(0, 8),

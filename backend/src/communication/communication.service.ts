@@ -119,17 +119,6 @@ export class CommunicationService implements OnApplicationBootstrap {
   }
 
   async resolveSender(body: any, cafeId?: string): Promise<{ phone: string; senderJid: string; resolvedPath: string }> {
-    const senderRemoteJid = body?.remoteJid || body?.phone || '';
-    const isTelegram = /^\d+$/.test(senderRemoteJid) && !senderRemoteJid.includes('@') && !senderRemoteJid.startsWith('tg_');
-
-    if (isTelegram) {
-      return {
-        phone: `tg_${senderRemoteJid}`,
-        senderJid: senderRemoteJid,
-        resolvedPath: 'TELEGRAM_CHAT_ID',
-      };
-    }
-
     if (body?.event !== 'message.received') {
       const p = body?.phone || body?.remoteJid || '';
       return {

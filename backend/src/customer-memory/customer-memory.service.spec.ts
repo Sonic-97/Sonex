@@ -167,7 +167,7 @@ describe('CustomerMemoryService', () => {
 
     it('keeps one order as a weak observation', async () => {
       await service.observeOrder(scope, observation('one'));
-      const signal = (await service.getMemory(scope))?.inferredPreferences.sugarPreference;
+      const signal = (await service.getMemory(scope, new Date('2026-07-01T19:00:00Z')))?.inferredPreferences.sugarPreference;
       expect(signal?.evidenceCount).toBe(1);
       expect(signal?.confidence).toBeLessThan(0.5);
     });
@@ -206,7 +206,7 @@ describe('CustomerMemoryService', () => {
     it('protects against duplicate observation updates', async () => {
       await service.observeOrder(scope, observation('same-id'));
       expect(await service.observeOrder(scope, observation('same-id'))).toBe(false);
-      expect((await service.getMemory(scope))?.inferredPreferences.sugarPreference?.evidenceCount).toBe(1);
+      expect((await service.getMemory(scope, new Date('2026-07-01T19:00:00Z')))?.inferredPreferences.sugarPreference?.evidenceCount).toBe(1);
     });
   });
 

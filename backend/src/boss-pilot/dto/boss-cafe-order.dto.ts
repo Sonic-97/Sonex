@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsArray, ValidateNested, IsEnum, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum BossOrderType {
@@ -26,10 +26,12 @@ export class BossOrderItemDto {
   productName: string;
 
   @IsNumber()
+  @Min(1)
   quantity: number;
 
   @IsNumber()
-  unitPrice: number;
+  @IsOptional()
+  unitPrice?: number;
 }
 
 export class BossCafeOrderDto {

@@ -1,9 +1,11 @@
-import { Controller, Post, Body, Get, Logger, Param } from '@nestjs/common';
+import { Controller, Post, Body, Get, Logger, Param, BadRequestException, NotFoundException, UseGuards } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { IsString, IsArray, ValidateNested, IsNumber, IsOptional, Min } from 'class-validator';
 import { Type } from 'class-transformer';
+import * as bcrypt from 'bcrypt';
 
 class DebugOrderItemDto {
   @IsString()
@@ -37,6 +39,8 @@ class DebugOrderDto {
 }
 
 @Controller('debug')
+@UseGuards(RolesGuard)
+@Roles('SUPER_ADMIN')
 export class DebugController {
   private readonly logger = new Logger(DebugController.name);
 
@@ -45,16 +49,29 @@ export class DebugController {
     private readonly eventsService: EventsService,
   ) {}
 
+  private assertDebugEnabled(): void {
+    const enabled =
+      process.env.NODE_ENV !== 'production' ||
+      process.env.DEBUG_ENDPOINTS_ENABLED === 'true';
+    if (!enabled) {
+      throw new NotFoundException();
+    }
+  }
+
   @Post('test-order')
-  @Public()
   async createTestOrder(@Body() dto: DebugOrderDto) {
+    this.assertDebugEnabled();
     const traceId = `DEBUG-${Date.now()}`;
     this.logger.log(`[${traceId}] Creating test order: ${dto.customerName} with ${dto.items.length} items`);
+
+    if (!dto.cafeId && process.env.NODE_ENV === 'production') {
+      throw new BadRequestException('cafeId is required in production');
+    }
 
     const cafe = dto.cafeId
       ? await this.prisma.cafe.findUnique({ where: { id: dto.cafeId }, select: { id: true } })
       : await this.prisma.cafe.findFirst({ select: { id: true }, orderBy: { createdAt: 'asc' } });
-    if (!cafe) throw new Error('No cafe found');
+    if (!cafe) throw new BadRequestException('No valid cafe found');
 
     const branch = await this.prisma.branch.findFirst({
       where: { cafeId: cafe.id, slug: 'main-branch' },
@@ -194,8 +211,8 @@ export class DebugController {
   }
 
   @Get('test-order')
-  @Public()
   async getTestOrders() {
+    this.assertDebugEnabled();
     const defaultCafe = await this.prisma.cafe.findFirst({
       select: { id: true },
       orderBy: { createdAt: 'asc' },
@@ -211,17 +228,15 @@ export class DebugController {
   }
 
   @Get('cafe/:id')
-  @Public()
   async getCafeDetails(@Param('id') id: string) {
+    this.assertDebugEnabled();
     const cafe = await this.prisma.cafe.findUnique({
       where: { id },
       select: {
-        id: true, name: true, cafeCode: true, phone: true, ownerCode: true,
-        telegramEnabled: true, telegramBotToken: true, telegramBotUsername: true,
-        telegramCafeToken: true, active: true,
+        id: true, name: true, cafeCode: true, phone: true, active: true,
         branches: { select: { id: true, name: true, slug: true, active: true } },
-        products: { select: { id: true, name: true, category: true, price: true, cost: true, active: true } },
-        staffs: { select: { id: true, name: true, role: true, loginCode: true, phone: true } },
+        products: { select: { id: true, name: true, category: true, price: true, active: true } },
+        staffs: { select: { id: true, name: true, role: true, phone: true } },
       },
     });
     if (!cafe) return { error: 'Cafe not found' };
@@ -229,8 +244,8 @@ export class DebugController {
   }
 
   @Get('test-order/health')
-  @Public()
   async health() {
+    this.assertDebugEnabled();
     const defaultCafe = await this.prisma.cafe.findFirst({
       select: { id: true },
       orderBy: { createdAt: 'asc' },
@@ -243,63 +258,31 @@ export class DebugController {
     };
   }
 
-  @Post('setup-telegram')
-  @Public()
-  async setupTelegram(@Body() body: { cafeId?: string; cafeToken: string; cafeName?: string }) {
-    let cafe;
-    if (body.cafeId) {
-      cafe = await this.prisma.cafe.findUnique({
-        where: { id: body.cafeId },
-        select: { id: true, name: true },
-      });
-    } else {
-      cafe = await this.prisma.cafe.findFirst({
-        select: { id: true, name: true },
-        orderBy: { createdAt: 'asc' },
-      });
-    }
-    if (!cafe) throw new Error('No cafe found');
-
-    const updateData: any = { telegramCafeToken: body.cafeToken };
-    if (body.cafeName) updateData.name = body.cafeName;
-
-    await this.prisma.cafe.update({
-      where: { id: cafe.id },
-      data: updateData,
-    });
-
-    return { success: true, cafeId: cafe.id, cafeName: body.cafeName || cafe.name, cafeToken: body.cafeToken };
-  }
-
   @Get('cafes')
-  @Public()
   async listCafes() {
+    this.assertDebugEnabled();
     return this.prisma.cafe.findMany({
-      select: { id: true, name: true, cafeCode: true, ownerCode: true, ownerPassword: true, phone: true },
+      select: { id: true, name: true, cafeCode: true, phone: true },
     });
   }
 
   @Get('staff-by-email/:email')
-  @Public()
   async findStaffByEmail(@Param('email') email: string) {
+    this.assertDebugEnabled();
     const staff = await this.prisma.staff.findFirst({
       where: { email },
-      select: { id: true, name: true, email: true, phone: true, role: true, loginCode: true, cafeId: true, cafe: { select: { id: true, name: true, cafeCode: true, ownerCode: true, ownerPassword: true } } },
+      select: { id: true, name: true, email: true, phone: true, role: true, cafeId: true, cafe: { select: { id: true, name: true, cafeCode: true } } },
     });
     if (staff) return staff;
 
-    const allCafes = await this.prisma.cafe.findMany({
-      select: { id: true, name: true, cafeCode: true, ownerCode: true, ownerPassword: true, phone: true },
-    });
-
-    return { error: 'Staff not found with this email', cafes: allCafes };
+    return { error: 'Staff not found with this email' };
   }
 
   @Post('setup-cafe')
-  @Public()
   async setupCafe(@Body() body: { name: string; cafeCode: string; phone?: string; ownerCode?: string; ownerPassword?: string }) {
+    this.assertDebugEnabled();
     const existing = await this.prisma.cafe.findUnique({ where: { cafeCode: body.cafeCode } });
-    if (existing) return { success: true, cafe: existing, message: 'Cafe already exists' };
+    if (existing) return { success: true, cafe: { id: existing.id, name: existing.name, cafeCode: existing.cafeCode }, message: 'Cafe already exists' };
 
     const cafe = await this.prisma.cafe.create({
       data: {
@@ -307,8 +290,7 @@ export class DebugController {
         cafeCode: body.cafeCode,
         phone: body.phone || `+20${Date.now().toString().slice(-10)}`,
         ownerCode: body.ownerCode || 'XD123456',
-        ownerPassword: body.ownerPassword || 'XD12345',
-        telegramCafeToken: body.cafeCode,
+        ownerPassword: await bcrypt.hash(body.ownerPassword || 'XD12345', 10),
       },
     });
 
@@ -357,7 +339,7 @@ export class DebugController {
 
     return {
       success: true,
-      cafe: { id: cafe.id, name: cafe.name, cafeCode: cafe.cafeCode, ownerCode: cafe.ownerCode, telegramCafeToken: cafe.telegramCafeToken },
+      cafe: { id: cafe.id, name: cafe.name, cafeCode: cafe.cafeCode },
       branch: { id: branch.id, name: branch.name, slug: branch.slug },
       productsCount: products.length,
     };

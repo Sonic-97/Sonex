@@ -492,6 +492,132 @@ export class OwnerActionExecutorService {
           rollback: { supported: true, metadata: { inventoryId: invItem.id, restoredQty: quantity } },
         };
       }
+      case 'DELETE_PRODUCT': {
+        const orderCount = await tx.orderItem.count({ where: { productId: productId! } });
+        let deleted = false;
+        let archived = false;
+        if (orderCount > 0) {
+          await tx.product.update({ where: { id: productId! }, data: { active: false } });
+          archived = true;
+        } else {
+          await tx.recipeIngredient.deleteMany({ where: { productId: productId! } });
+          await tx.branchProduct.deleteMany({ where: { productId: productId! } });
+          await tx.productSize.deleteMany({ where: { productId: productId! } });
+          await tx.productOption.deleteMany({ where: { productId: productId! } });
+          await tx.product.delete({ where: { id: productId! } });
+          deleted = true;
+        }
+        return {
+          verifiedState: { productId, deleted, archived, orderCount },
+          affectedRecordIds: [productId!],
+          rollback: { supported: archived, metadata: { productId, restoreActive: archived } },
+        };
+      }
+      case 'UPDATE_PRODUCT_RECIPE': {
+        const branchId = proposal.branchIds[0];
+        const ingredients = Array.isArray(proposal.proposedState.ingredients) ? proposal.proposedState.ingredients : [];
+        const newCost = new Prisma.Decimal(Number(proposal.proposedState.cost || 0));
+
+        await tx.recipeIngredient.deleteMany({ where: { productId: productId! } });
+        const createdIds: string[] = [];
+
+        for (const ing of ingredients) {
+          let invItem = await tx.inventory.findFirst({
+            where: {
+              cafeId: proposal.cafeId,
+              branchId: branchId || undefined,
+              itemName: { equals: ing.name, mode: 'insensitive' },
+            },
+          });
+          if (!invItem && branchId) {
+            invItem = await tx.inventory.create({
+              data: {
+                cafeId: proposal.cafeId,
+                branchId,
+                itemName: ing.name,
+                unit: ing.unit || 'g',
+                currentQty: new Prisma.Decimal(0),
+                minThreshold: new Prisma.Decimal(10),
+                costPerUnit: new Prisma.Decimal(0),
+              },
+            });
+          }
+          if (invItem) {
+            const recipeIng = await tx.recipeIngredient.create({
+              data: {
+                cafeId: proposal.cafeId,
+                productId: productId!,
+                inventoryId: invItem.id,
+                quantity: new Prisma.Decimal(Number(ing.quantity || 1)),
+                unit: ing.unit || invItem.unit || 'g',
+              } as any,
+            });
+            createdIds.push(recipeIng.id);
+          }
+        }
+
+        await tx.product.update({
+          where: { id: productId! },
+          data: { cost: newCost },
+        });
+
+        return {
+          verifiedState: { productId, newCost: Number(newCost), ingredientsCount: createdIds.length },
+          affectedRecordIds: [productId!, ...createdIds],
+          rollback: { supported: false },
+        };
+      }
+      case 'CREATE_CATEGORY': {
+        const name = String(proposal.proposedState.name);
+        let category = await tx.productCategory.findFirst({
+          where: { cafeId: proposal.cafeId, name: { equals: name, mode: 'insensitive' } },
+        });
+        if (!category) {
+          category = await tx.productCategory.create({
+            data: { cafeId: proposal.cafeId, name, sortOrder: 0 },
+          });
+        }
+        return {
+          verifiedState: { categoryId: category.id, name: category.name },
+          affectedRecordIds: [category.id],
+          rollback: { supported: true, metadata: { categoryId: category.id } },
+        };
+      }
+      case 'DELETE_CATEGORY': {
+        const categoryId = proposal.resource.id!;
+        await tx.product.updateMany({
+          where: { categoryId, cafeId: proposal.cafeId },
+          data: { categoryId: null } as any,
+        });
+        await tx.productCategory.delete({ where: { id: categoryId } });
+        return {
+          verifiedState: { categoryId, deleted: true },
+          affectedRecordIds: [categoryId],
+          rollback: { supported: false },
+        };
+      }
+      case 'CREATE_ACTIVE_PROMOTION': {
+        const promo = await tx.cafePromotion.create({
+          data: {
+            cafeId: proposal.cafeId,
+            name: String(proposal.proposedState.name),
+            discountType: String(proposal.proposedState.discountType || 'PERCENTAGE'),
+            discountValue: new Prisma.Decimal(Number(proposal.proposedState.discountValue || 0)),
+            minimumOrder: new Prisma.Decimal(Number(proposal.proposedState.minimumOrder || 0)),
+            enabled: true,
+          } as any,
+        });
+        return {
+          verifiedState: {
+            promotionId: promo.id,
+            name: promo.name,
+            discountValue: Number(promo.discountValue),
+            discountType: promo.discountType,
+          },
+          affectedRecordIds: [promo.id],
+          rollback: { supported: true, metadata: { promotionId: promo.id } },
+        };
+      }
       default:
         throw new Error(`No approved typed execution tool for ${proposal.actionType}.`);
     }
@@ -508,6 +634,11 @@ export class OwnerActionExecutorService {
       CREATE_PRODUCT_WITH_RECIPE: 'createApprovedProductWithRecipe',
       RECORD_INVENTORY_PURCHASE: 'recordApprovedInventoryPurchase',
       RECORD_STOCK_WASTE: 'recordApprovedStockWaste',
+      DELETE_PRODUCT: 'deleteApprovedProduct',
+      UPDATE_PRODUCT_RECIPE: 'updateApprovedProductRecipe',
+      CREATE_CATEGORY: 'createApprovedCategory',
+      DELETE_CATEGORY: 'deleteApprovedCategory',
+      CREATE_ACTIVE_PROMOTION: 'createApprovedPromotion',
     }[proposal.actionType] || 'unsupported';
   }
 

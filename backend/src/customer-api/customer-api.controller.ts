@@ -1,13 +1,19 @@
 import { Controller, Post, Get, Body, Param, UseGuards, HttpCode, HttpStatus, Req, UnauthorizedException } from '@nestjs/common';
 import { CustomerApiService } from './customer-api.service';
 import { CustomerApiAuthGuard } from './customer-api-auth.guard';
-import { CustomerLoginRequest, CustomerMessageRequest, CustomerConfirmRequest, AuthPayload } from './customer-api.types';
+import { CustomerLoginRequest, CustomerOtpRequest, CustomerMessageRequest, CustomerConfirmRequest, AuthPayload } from './customer-api.types';
 import { Public } from '../auth/decorators';
 
 @Public()
 @Controller('customer')
 export class CustomerApiController {
   constructor(private readonly api: CustomerApiService) {}
+
+  @Post('auth/request-otp')
+  @HttpCode(HttpStatus.OK)
+  async requestOtp(@Body() body: CustomerOtpRequest) {
+    return this.api.requestOtp(body);
+  }
 
   @Post('auth/login')
   @HttpCode(HttpStatus.OK)

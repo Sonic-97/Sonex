@@ -132,9 +132,7 @@ export async function cancelOrder(orderId: string) {
 
 export async function fetchWhatsAppOrders() {
   const { data: whatsappOrders } = await api.get('/orders', { params: { sourceType: 'WHATSAPP_ORDER' } });
-  const { data: telegramOrders } = await api.get('/orders', { params: { sourceType: 'TELEGRAM_ORDER' } });
-  const merged = [...(Array.isArray(whatsappOrders) ? whatsappOrders : []), ...(Array.isArray(telegramOrders) ? telegramOrders : [])];
-  return merged;
+  return Array.isArray(whatsappOrders) ? whatsappOrders : [];
 }
 
 export async function fetchBaristaQueue() {

@@ -12,6 +12,8 @@ export interface PipelineItem {
   refrigeratorInventoryId?: string | null;
   /** Extra ingredients from option choices (e.g. extra milk for "Large" size) */
   extraIngredients?: IngredientImpact[];
+  /** Packaging mode: TAKEAWAY (uses paper cups, lids, sleeves) vs DINE_IN (uses reusable glassware/ceramic, 0 packaging) */
+  packagingMode?: 'TAKEAWAY' | 'DINE_IN';
 }
 
 export interface ReserveParams {
@@ -19,6 +21,8 @@ export interface ReserveParams {
   cafeId: string;
   branchId: string;
   items: PipelineItem[];
+  orderType?: string;
+  defaultPackagingMode?: 'TAKEAWAY' | 'DINE_IN';
 }
 
 export interface ReserveResult {
@@ -26,6 +30,7 @@ export interface ReserveResult {
     inventoryId: string;
     itemName: string;
     quantity: string;
+    materialType?: 'RECIPE_INGREDIENT' | 'PACKAGING_MATERIAL';
   }>;
   refrigeratorDeducted: Array<{
     productId: string;
@@ -40,6 +45,7 @@ export interface ConfirmResult {
     itemName: string;
     deducted: string;
     remaining: string;
+    materialType?: 'RECIPE_INGREDIENT' | 'PACKAGING_MATERIAL';
   }>;
 }
 

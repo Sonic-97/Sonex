@@ -33,6 +33,7 @@ describe('InventoryPipelineService', () => {
       },
       stockLedger: { create: jest.fn().mockResolvedValue({}) },
       inventoryConsumption: { create: jest.fn().mockResolvedValue({}) },
+      packagingMaterial: { findFirst: jest.fn().mockResolvedValue(null) },
     };
 
     mockTx = (overrides: Record<string, any> = {}) => {

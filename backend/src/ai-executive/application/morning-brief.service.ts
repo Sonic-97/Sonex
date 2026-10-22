@@ -134,10 +134,13 @@ export class MorningBriefService {
     ownerId: string,
   ): Promise<Result<{ status: string; message: string }>> {
     try {
-      this.logger.log(`Recommendation ${recommendationId} approved by owner ${ownerId}. Execution triggered.`);
+      // NOTE: Recommendations are generated on the fly and not persisted, and no
+      // execution engine is wired to this endpoint. We therefore record the
+      // approval honestly instead of reporting that the action ran.
+      this.logger.log(`Recommendation ${recommendationId} approved by owner ${ownerId}.`);
       return Result.ok({
-        status: 'EXECUTED',
-        message: `تم اعتماد الإجراء ${recommendationId} بنجاح وتنفيذه آلياً في النظام.`,
+        status: 'APPROVED',
+        message: `تم اعتماد الإجراء ${recommendationId}. لم يتم تنفيذ أي خطوة آلية بعد.`,
       });
     } catch (err: any) {
       return Result.fail(`Failed to approve recommendation: ${err.message}`);

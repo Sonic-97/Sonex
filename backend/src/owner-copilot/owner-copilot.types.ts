@@ -92,7 +92,8 @@ export type OwnerCopilotToolName =
   | 'simulateCombo'
   | 'simulatePriceChange'
   | 'compareOfferScenarios'
-  | 'getForecastAccuracy';
+  | 'getForecastAccuracy'
+  | 'computeProductCost';
 
 export type OwnerDateRangeType =
   | 'TODAY'

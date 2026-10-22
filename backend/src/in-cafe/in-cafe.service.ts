@@ -231,19 +231,32 @@ export class InCafeService {
         }
       }
 
+      // Determine default packaging mode based on order type (DINE_IN vs TAKEAWAY)
+      const defaultPackagingMode: 'TAKEAWAY' | 'DINE_IN' =
+        (dto.orderType === 'TAKEAWAY' || dto.orderType === 'DELIVERY') ? 'TAKEAWAY' : 'DINE_IN';
+
       // Inventory pipeline: reserve stock + deduct refrigerator stock
       const pipelineResult = await this.inventoryPipeline.reserve({
         orderId: created.id,
         cafeId: cafeId!,
         branchId: created.branchId,
+        orderType: dto.orderType || 'DINE_IN',
+        defaultPackagingMode,
         items: enrichedItems.map(i => {
           const p = productMap.get(i.productId)!;
+          let itemPackagingMode = defaultPackagingMode;
+          if (i.notes && /تيك\s*اواي|takeaway|سفري/i.test(i.notes)) {
+            itemPackagingMode = 'TAKEAWAY';
+          } else if (i.notes && /صالة|dine[-_ ]?in|محلي/i.test(i.notes)) {
+            itemPackagingMode = 'DINE_IN';
+          }
           return {
             productId: i.productId,
             productName: p.name,
             quantity: i.quantity,
             isRefrigerated: p.isRefrigerated,
             refrigeratorInventoryId: p.refrigeratorInventoryId,
+            packagingMode: itemPackagingMode,
             extraIngredients: i.extraIngredients.length > 0 ? i.extraIngredients : undefined,
           };
         }),

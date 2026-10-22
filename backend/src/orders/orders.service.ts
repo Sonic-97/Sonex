@@ -176,19 +176,36 @@ export class OrdersService {
         },
       });
 
+      // Determine default packaging mode based on order type
+      const defaultPackagingMode: 'TAKEAWAY' | 'DINE_IN' =
+        (type === 'TAKEAWAY' || type === 'DELIVERY') ? 'TAKEAWAY' : 'DINE_IN';
+
       // Inventory pipeline: reserve stock + deduct refrigerator stock
       const pipelineItems = items.map(item => {
         const product = productsById.get(item.productId)!;
+        let itemPackagingMode = defaultPackagingMode;
+        if (item.notes && /تيك\s*اواي|takeaway|سفري/i.test(item.notes)) {
+          itemPackagingMode = 'TAKEAWAY';
+        } else if (item.notes && /صالة|dine[-_ ]?in|محلي/i.test(item.notes)) {
+          itemPackagingMode = 'DINE_IN';
+        }
+
         return {
           productId: item.productId,
           productName: product.name,
           quantity: item.quantity,
           isRefrigerated: product.isRefrigerated,
           refrigeratorInventoryId: product.refrigeratorInventoryId,
+          packagingMode: itemPackagingMode,
         };
       });
       const pipelineResult = await this.inventoryPipeline.reserve({
-        orderId: order.id, cafeId: cafeId!, branchId: targetBranchId, items: pipelineItems,
+        orderId: order.id,
+        cafeId: cafeId!,
+        branchId: targetBranchId,
+        items: pipelineItems,
+        orderType: type,
+        defaultPackagingMode,
       }, tx);
 
       if (pipelineResult.inventoryReserved.length > 0 || pipelineResult.refrigeratorDeducted.length > 0) {

@@ -42,10 +42,10 @@ describe('MorningBriefService', () => {
     expect(res.value.recommendations[0].evidence).toBeDefined();
   });
 
-  it('should approve AI recommendation with 1-click action execution', async () => {
+  it('should record AI recommendation approval without claiming execution', async () => {
     const res = await service.approveRecommendation('rec_100', 'owner_01');
 
     expect(res.isSuccess).toBe(true);
-    expect(res.value.status).toBe('EXECUTED');
+    expect(res.value.status).toBe('APPROVED');
   });
 });

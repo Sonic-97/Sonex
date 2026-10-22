@@ -281,6 +281,16 @@ export class OwnerActionsService {
 
     const branchId = requestBranchId || user.branchId || undefined;
 
+    // 0. Menu & Catalog Creation Guidance (عايز اعمل منيو / انشئ منيو / جهز منيو)
+    if (
+      (/(منيو|قائمة|قايمة|menu)/i.test(text) && /(اعمل|انشئ|أنشئ|سوي|جهز|جديد|عايز|create|make|build)/i.test(text) && !/(احذف|شيل|امسح)/i.test(text)) ||
+      (/^(عايز اعمل منيو|اعمل منيو|انشئ منيو|أنشئ منيو|ازاي اعمل منيو)$/i.test(text))
+    ) {
+      return this.clarification(
+        'لإعداد المنيو، يمكنك الانتقال إلى صفحة "المنيو" أو "الكتالوج العام" من القائمة الجانبية لإدارة الأصناف والتصنيفات الجاهزة، أو اطلب مني هنا مباشرة إضافة الأصناف وسأجهزها لك فوراً، مثال:\n• "ضيف قهوة تركي بـ 30 جنيه في قسم مشروبات ساخنة"\n• "ضيف كابتشينو بـ 50 جنيه"\n• "ضيف عصير مانجو بـ 45 جنيه في قسم عصائر طبيعية"'
+      );
+    }
+
     // 1. Price Updates (عدل سعر الشاي خليه 25 بدل 20 / زود الكابتشينو 5 جنيه / خلي الشيشة تفاح بـ 60)
     if (
       ((text.includes('سعر') || text.includes('price')) && /(زود|زيادة|غير|غيّر|عدل|عدّل|اجعل|خلي|خلّي|خفض|قلل|نزل|increase|raise|change|update|set)/i.test(text)) ||
@@ -512,6 +522,101 @@ export class OwnerActionsService {
         requestedText: ownerMessage,
       }, 'COPILOT');
       return this.prepared(proposal, `تم تجهيز فاتورة شراء ${parsed.items.length} صنف/أصناف بقيمة إجمالية ${parsed.totalAmount} ج.م (${parsed.paymentMethod === 'CASH' ? 'كاش من الدرج' : 'بالبطاقة'}). راجع واعتمد لإضافة الكميات للمخزن وتسجيل المصروف.`);
+    }
+
+    // 5. Delete Product from Menu
+    if (
+      /(احذف|امسح|شيل|ازالة|إزالة|delete|remove)\s+(?:صنف|منتج|مشروب|المنتج|الصنف|المشروب)?\s*([^\d\n]+?)(?:\s+من المنيو|\s+نهائياً|\s+خالص|\s+من القائمة)?$/i.test(text) ||
+      (/(احذف|امسح|شيل|ازالة|إزالة)\s+.*?(?:من المنيو|من القائمة)/i.test(text))
+    ) {
+      const product = await this.findProduct(user.cafeId!, text);
+      if (!product) return this.clarification('يرجى تحديد اسم الصنف المراد حذفه من المنيو بدقة (مثال: احذف صنف الشاي الأخضر من المنيو).');
+      const proposal = await this.prepare(user, {
+        actionType: 'DELETE_PRODUCT',
+        branchId,
+        resourceId: product.id,
+        proposedState: { productId: product.id, name: product.name },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
+      }, 'COPILOT');
+      return this.prepared(proposal, `تم تجهيز طلب حذف الصنف "${product.name}". راجع واعتمد للتنفيذ.`);
+    }
+
+    // 6. Update Product Recipe / Ingredients
+    if (/(عدل|غير|غيّر|تعديل|تغيير)\s+(?:مقادير|مكونات|ريسبي|وصفة|recipe)\s+/i.test(text)) {
+      const product = await this.findProduct(user.cafeId!, text);
+      if (!product) return this.clarification('يرجى تحديد اسم الصنف المراد تعديل مقاديره (مثال: عدل مقادير اللاتيه خلي البن 20 جرام والحليب 180 مل).');
+      const parsed = this.parseNaturalRecipeIngredients(ownerMessage);
+      if (!parsed.ingredients.length) return this.clarification('يرجى تحديد المكونات والكميات بالجرام أو المل (مثال: 18 جرام بن و 150 مل حليب).');
+      const proposal = await this.prepare(user, {
+        actionType: 'UPDATE_PRODUCT_RECIPE',
+        branchId,
+        resourceId: product.id,
+        proposedState: {
+          productId: product.id,
+          name: product.name,
+          ingredients: parsed.ingredients,
+          cost: parsed.estimatedCost || round(Number(product.cost)),
+        },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
+      }, 'COPILOT');
+      return this.prepared(proposal, `تم تجهيز تعديل مقادير صنف "${product.name}" مع ${parsed.ingredients.length} مكون(ات). راجع واعتمد للتطبيق فوراً.`);
+    }
+
+    // 7. Create/Delete Category
+    if (/(احذف|امسح|شيل)\s+(?:قسم|تصنيف|فئة|category)\s+([^\d\n]+)/i.test(text)) {
+      const catMatch = ownerMessage.match(/(?:احذف|امسح|شيل)\s+(?:قسم|تصنيف|فئة|category)\s+([^\d\n]+)/i);
+      const catName = catMatch ? catMatch[1].trim() : '';
+      const category = await this.prisma.productCategory.findFirst({
+        where: { cafeId: user.cafeId!, name: { contains: catName, mode: 'insensitive' } },
+      });
+      if (!category) return this.clarification(`لم يتم العثور على قسم باسم "${catName}".`);
+      const proposal = await this.prepare(user, {
+        actionType: 'DELETE_CATEGORY',
+        branchId,
+        resourceId: category.id,
+        proposedState: { categoryId: category.id, name: category.name },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
+      }, 'COPILOT');
+      return this.prepared(proposal, `تم تجهيز طلب حذف قسم "${category.name}". راجع واعتمد للتنفيذ.`);
+    }
+
+    if (/(ضيف|اضف|انشئ|أنشئ|اعمل)\s+(?:قسم|تصنيف|فئة|category)\s+(?:جديد\s+)?([^\d\n]+)/i.test(text)) {
+      const catMatch = ownerMessage.match(/(?:ضيف|اضف|انشئ|أنشئ|اعمل)\s+(?:قسم|تصنيف|فئة|category)\s+(?:جديد\s+)?([^\d\n]+)/i);
+      const catName = catMatch ? catMatch[1].trim() : 'قسم جديد';
+      const proposal = await this.prepare(user, {
+        actionType: 'CREATE_CATEGORY',
+        branchId,
+        proposedState: { name: catName },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
+      }, 'COPILOT');
+      return this.prepared(proposal, `تم تجهيز إضافة قسم جديد باسم "${catName}". راجع واعتمد لإضافته للمنيو.`);
+    }
+
+    // 8. Create Live Promotion
+    if (/(اعمل|انشئ|أنشئ|فعل|تفعيل|ضيف)\s+(?:عرض\s+خصم|عرض|خصم|بروموشن|offer|promotion)\s+(\d+(?:\.\d+)?)\s*(?:%|في المية|في الميه|بالمية|بالميه|جنيه)?/i.test(text)) {
+      const promoMatch = text.match(/(?:عرض\s+خصم|عرض|خصم|بروموشن|offer|promotion)\s+(\d+(?:\.\d+)?)\s*(%|جنيه)?/i);
+      const discountVal = promoMatch && promoMatch[1] ? Number(promoMatch[1]) : 10;
+      const isPercentage = !promoMatch || promoMatch[2] !== 'جنيه';
+      const minOrderMatch = text.match(/(?:بحد ادنى|بحد أدنى|طلب بـ|طلبات فوق)\s*(\d+)/i);
+      const minOrder = minOrderMatch && minOrderMatch[1] ? Number(minOrderMatch[1]) : 0;
+      const promoName = `خصم ${discountVal}${isPercentage ? '%' : ' ج'} ترويجي`;
+      const proposal = await this.prepare(user, {
+        actionType: 'CREATE_ACTIVE_PROMOTION',
+        branchId,
+        proposedState: {
+          name: promoName,
+          discountType: isPercentage ? 'PERCENTAGE' : 'FIXED',
+          discountValue: discountVal,
+          minimumOrder: minOrder,
+        },
+        reason: ownerMessage,
+        requestedText: ownerMessage,
+      }, 'COPILOT');
+      return this.prepared(proposal, `تم تجهيز تفعيل عرض خصم ${discountVal}${isPercentage ? '%' : ' ج.م'} بحد أدنى ${minOrder} ج.م. راجع واعتمد لتطبيقه فوراً على واتساب والمنيو.`);
     }
 
     this.metrics.blockedRequests += 1;
@@ -755,8 +860,8 @@ export class OwnerActionsService {
       .slice(0, 1000);
   }
 
-  private async findProduct(cafeId: string, text: string): Promise<{ id: string; name: string; price: unknown } | null> {
-    const products = await this.prisma.product.findMany({ where: { cafeId }, select: { id: true, name: true, price: true } });
+  private async findProduct(cafeId: string, text: string): Promise<{ id: string; name: string; price: unknown; cost: unknown } | null> {
+    const products = await this.prisma.product.findMany({ where: { cafeId }, select: { id: true, name: true, price: true, cost: true } });
     const normalized = this.normalizeText(text);
 
     // 1. Direct substring match
@@ -885,6 +990,26 @@ export class OwnerActionsService {
     return { name, price, cost, categoryName, ingredients };
   }
 
+  private parseNaturalRecipeIngredients(raw: string): {
+    ingredients: Array<{ name: string; quantity: number; unit: string }>;
+    estimatedCost: number;
+  } {
+    const ingredients: Array<{ name: string; quantity: number; unit: string }> = [];
+    const ingPattern = /(\d+(?:\.\d+)?)\s*(جرام|جم|غرام|غ|g|مل|ملي|لتر|كوب|علبة|قطعة)\s+([^\d,،\.\n]+)/gi;
+    let match;
+    while ((match = ingPattern.exec(raw)) !== null) {
+      const qty = Number(match[1]);
+      const rawUnit = match[2].trim();
+      const ingName = match[3].trim().replace(/(?:من|في|و)\s+/, '').replace(/\s+(?:و|مع).*$/, '');
+      const unit = /(مل|ملي)/.test(rawUnit) ? 'ml' : /(جرام|جم|غ|g)/.test(rawUnit) ? 'g' : /(لتر)/.test(rawUnit) ? 'liter' : 'piece';
+      if (ingName.length >= 2 && !ingredients.some((i) => i.name === ingName)) {
+        ingredients.push({ name: ingName, quantity: qty, unit });
+      }
+    }
+    const estimatedCost = round(ingredients.length * 5);
+    return { ingredients, estimatedCost };
+  }
+
   private parseNaturalPurchase(text: string, raw: string): {
     items: Array<{ name: string; quantity: number; unit: string; unitPrice: number }>;
     totalAmount: number;
@@ -896,12 +1021,17 @@ export class OwnerActionsService {
     const items: Array<{ name: string; quantity: number; unit: string; unitPrice: number }> = [];
     let computedTotal = 0;
 
-    // Clean trailing payment and drawer phrases
-    const cleaned = raw.replace(/\s*(?:دفعتهم|دفعت|كاش|نقدي|من الدرج|من الخزينة|بالفيزا|بالكرت).*$/i, '');
+    // Clean trailing payment, supplier, and drawer phrases
+    const cleaned = raw
+      .replace(/\s*(?:دفعتهم|دفعت|كاش|نقدي|من الدرج|من الخزينة|بالفيزا|بالكرت).*$/i, '')
+      .replace(/\s*(?:من عند|من مورد|من المورد|من الحاج|من عم|من)\s+(?!الدرج|الخزينة)[\p{L}\s]+$/u, '');
     const chunks = cleaned.split(/(?:\s+و\s*|\s*[,،\n]\s*)/);
 
     for (let chunk of chunks) {
-      chunk = chunk.replace(/^(اشتريت|شريت|جبت|نزلت جبت|فاتورة شراء|شراء بضاعة|شراء)\s+/i, '').trim();
+      chunk = chunk
+        .replace(/^(اشتريت|شريت|جبت|نزلت جبت|فاتورة شراء|شراء بضاعة|شراء)\s+/i, '')
+        .replace(/\s*(?:من عند|من مورد|من المورد|من الحاج|من عم|من)\s+(?!الدرج|الخزينة)[\p{L}\s]+$/u, '')
+        .trim();
       const m = chunk.match(/(\d+(?:\.\d+)?)\s*(كيلو|كجم|ك|kg|علبة|علب|كانز|كرتونة|كراتين|شوال|لتر|قطعة|باكت)\s+([^\d]+?)(?:\s+(الكيلو|الواحدة|العلبة|الكانز|للكيلو)?\s*(?:بـ|بسعر|ب)\s*(\d+(?:\.\d+)?))?(?:\s*(?:جنيه|ج))?$/i);
       if (m) {
         const qty = Number(m[1]);

@@ -1,29 +1,47 @@
-import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { CreateDeviceDto, UpdateDeviceDto, UpdatePricingDto, StartSessionDto } from './dto/playstation.dto';
+import {
+  CreateDeviceDto,
+  UpdateDeviceDto,
+  UpdatePricingDto,
+  StartSessionDto,
+  AddSessionOrderDto,
+  TransferSessionDto,
+  SettleSessionDto,
+} from './dto/playstation.dto';
+import { EventsService } from '../events/events.service';
+import { DigitalPaymentService } from '../payment/digital-payment.service';
+import { InventoryPipelineService } from '../inventory-pipeline/inventory-pipeline.service';
 
 @Injectable()
 export class PlayStationService {
   private readonly logger = new Logger(PlayStationService.name);
-  constructor(private readonly prisma: PrismaService) {}
 
-  // ── DEVICES ──
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly eventsService: EventsService,
+    private readonly digitalPaymentService: DigitalPaymentService,
+    @Optional() private readonly inventoryPipeline?: InventoryPipelineService,
+  ) {}
+
+  // ── DEVICES & ROOMS ──
 
   async getDevices(cafeId: string) {
     if (!cafeId) throw new BadRequestException('معرف الكافيه مطلوب');
-    
+
     let devices = await this.prisma.playStationDevice.findMany({
       where: { cafeId },
       orderBy: { name: 'asc' },
     });
 
-    // Auto-seed one device if none exist
+    // Auto-seed one default device if none exist
     if (devices.length === 0) {
       const defaultDevice = await this.prisma.playStationDevice.create({
         data: {
           cafeId,
-          name: 'PS Device 1',
+          name: 'PS5 - جهاز 1',
+          deviceType: 'PS5',
         },
       });
       devices = [defaultDevice];
@@ -35,18 +53,21 @@ export class PlayStationService {
   async createDevice(dto: CreateDeviceDto, cafeId: string) {
     if (!cafeId) throw new BadRequestException('معرف الكافيه مطلوب');
 
-    // Check unique name per cafe
     const existing = await this.prisma.playStationDevice.findFirst({
       where: { cafeId, name: { equals: dto.name, mode: 'insensitive' } },
     });
     if (existing) {
-      throw new BadRequestException('اسم الجهاز مستخدم بالفعل في هذا الكافيه');
+      throw new BadRequestException('اسم الجهاز أو الغرفة مستخدم بالفعل في هذا الكافيه');
     }
 
     return this.prisma.playStationDevice.create({
       data: {
         cafeId,
         name: dto.name,
+        deviceType: dto.deviceType || 'PS5',
+        hourlyRate: dto.hourlyRate != null ? new Prisma.Decimal(dto.hourlyRate) : null,
+        multiHourlyRate: dto.multiHourlyRate != null ? new Prisma.Decimal(dto.multiHourlyRate) : null,
+        notes: dto.notes || null,
       },
     });
   }
@@ -62,7 +83,6 @@ export class PlayStationService {
     }
 
     if (dto.name) {
-      // Check unique name per cafe excluding this device
       const existing = await this.prisma.playStationDevice.findFirst({
         where: {
           cafeId,
@@ -71,7 +91,7 @@ export class PlayStationService {
         },
       });
       if (existing) {
-        throw new BadRequestException('اسم الجهاز مستخدم بالفعل في هذا الكافيه');
+        throw new BadRequestException('اسم الجهاز أو الغرفة مستخدم بالفعل');
       }
     }
 
@@ -79,6 +99,10 @@ export class PlayStationService {
       where: { id },
       data: {
         name: dto.name,
+        deviceType: dto.deviceType,
+        hourlyRate: dto.hourlyRate != null ? new Prisma.Decimal(dto.hourlyRate) : undefined,
+        multiHourlyRate: dto.multiHourlyRate != null ? new Prisma.Decimal(dto.multiHourlyRate) : undefined,
+        notes: dto.notes,
         active: dto.active,
       },
     });
@@ -91,10 +115,9 @@ export class PlayStationService {
       where: { id, cafeId },
     });
     if (!device) {
-      throw new NotFoundException('الجهاز غير موجود في هذا الكافيه');
+      throw new NotFoundException('الجهاز غير موجود');
     }
 
-    // Check if there are active sessions on this device
     const activeSession = await this.prisma.playStationSession.findFirst({
       where: { deviceId: id, endTime: null },
     });
@@ -120,10 +143,10 @@ export class PlayStationService {
       pricing = await this.prisma.playStationPricing.create({
         data: {
           cafeId,
-          singlePlayerHourlyPrice: new Prisma.Decimal(20.00),
-          twoPlayersHourlyPrice: new Prisma.Decimal(30.00),
-          threePlayersHourlyPrice: new Prisma.Decimal(40.00),
-          fourPlayersHourlyPrice: new Prisma.Decimal(50.00),
+          singlePlayerHourlyPrice: new Prisma.Decimal(25.0),
+          twoPlayersHourlyPrice: new Prisma.Decimal(35.0),
+          threePlayersHourlyPrice: new Prisma.Decimal(45.0),
+          fourPlayersHourlyPrice: new Prisma.Decimal(55.0),
         },
       });
     }
@@ -152,7 +175,7 @@ export class PlayStationService {
     });
   }
 
-  // ── SESSIONS ──
+  // ── SESSIONS MANAGEMENT ──
 
   async getActiveSessions(cafeId: string) {
     if (!cafeId) throw new BadRequestException('معرف الكافيه مطلوب');
@@ -165,14 +188,29 @@ export class PlayStationService {
       include: {
         device: true,
         openedBy: { select: { id: true, name: true } },
+        orders: {
+          select: {
+            id: true,
+            code: true,
+            total: true,
+            paymentStatus: true,
+            items: {
+              select: {
+                id: true,
+                quantity: true,
+                unitPrice: true,
+                productNameSnapshot: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { startTime: 'asc' },
     });
 
-    // Lazy evaluation state transition: transition to Running if free period elapsed
     const now = new Date();
     for (const session of sessions) {
-      if (session.status === 'Pending Free Time') {
+      if (session.status === 'Pending Free Time' && !session.isPaused) {
         const freeEnd = session.freePeriodEndTime
           ? new Date(session.freePeriodEndTime)
           : new Date(session.startTime.getTime() + 600000);
@@ -191,10 +229,14 @@ export class PlayStationService {
     }
 
     const serverTime = now.toISOString();
-    return sessions.map((session) => ({
-      ...session,
-      serverTime,
-    }));
+    return sessions.map((session) => {
+      const ordersTotal = session.orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+      return {
+        ...session,
+        ordersTotal,
+        serverTime,
+      };
+    });
   }
 
   async startSession(dto: StartSessionDto, employeeId: string, cafeId: string) {
@@ -204,13 +246,12 @@ export class PlayStationService {
       where: { id: dto.deviceId, cafeId },
     });
     if (!device) {
-      throw new NotFoundException('الجهاز غير موجود في هذا الكافيه');
+      throw new NotFoundException('الجهاز أو الغرفة غير موجودة');
     }
     if (!device.active) {
       throw new BadRequestException('هذا الجهاز غير مفعل حالياً');
     }
 
-    // Check if device already has active session (either Pending Free Time or Running)
     const active = await this.prisma.playStationSession.findFirst({
       where: {
         deviceId: dto.deviceId,
@@ -222,11 +263,13 @@ export class PlayStationService {
     }
 
     const startTime = new Date();
-    const freePeriodEndTime = new Date(startTime.getTime() + 10 * 60 * 1000); // 10 min free
+    const freePeriodEndTime = new Date(startTime.getTime() + 10 * 60 * 1000); // 10 min free phase
 
-    this.logger.log(`[SESSION START] Cafe: ${cafeId} | Device: ${device.name} | Customer: ${dto.customerName} | Type: ${dto.sessionType}`);
+    this.logger.log(
+      `[SESSION START] Cafe: ${cafeId} | Device: ${device.name} | Customer: ${dto.customerName} | Type: ${dto.sessionType}`,
+    );
 
-    return this.prisma.playStationSession.create({
+    const session = await this.prisma.playStationSession.create({
       data: {
         cafeId,
         deviceId: dto.deviceId,
@@ -236,21 +279,291 @@ export class PlayStationService {
         startTime,
         freePeriodEndTime,
         status: 'Pending Free Time',
+        targetDurationMinutes: dto.targetDurationMinutes || null,
+        notes: dto.notes || null,
+        isPaused: false,
+        totalPauseMinutes: 0,
       },
-      include: { device: true, openedBy: { select: { id: true, name: true } } },
+      include: {
+        device: true,
+        openedBy: { select: { id: true, name: true } },
+        orders: true,
+      },
     });
+
+    this.eventsService.broadcast('playstation:session_started', {
+      sessionId: session.id,
+      deviceId: device.id,
+      deviceName: device.name,
+      customerName: session.customerName,
+      sessionType: session.sessionType,
+      startTime: session.startTime,
+    }, cafeId);
+
+    return session;
   }
 
+  async pauseSession(id: string, cafeId: string) {
+    if (!cafeId) throw new BadRequestException('معرف الكافيه مطلوب');
+
+    const session = await this.prisma.playStationSession.findFirst({
+      where: { id, cafeId },
+      include: { device: true },
+    });
+    if (!session) throw new NotFoundException('الجلسة غير موجودة');
+    if (session.status === 'Completed') throw new BadRequestException('الجلسة مغلقة بالفعل');
+    if (session.isPaused) throw new BadRequestException('الجلسة متوقفة مؤقتاً بالفعل');
+
+    const updated = await this.prisma.playStationSession.update({
+      where: { id },
+      data: {
+        isPaused: true,
+        lastPausedAt: new Date(),
+      },
+      include: { device: true },
+    });
+
+    this.eventsService.broadcast('playstation:session_paused', {
+      sessionId: id,
+      deviceName: session.device.name,
+      lastPausedAt: updated.lastPausedAt,
+    }, cafeId);
+
+    return updated;
+  }
+
+  async resumeSession(id: string, cafeId: string) {
+    if (!cafeId) throw new BadRequestException('معرف الكافيه مطلوب');
+
+    const session = await this.prisma.playStationSession.findFirst({
+      where: { id, cafeId },
+      include: { device: true },
+    });
+    if (!session) throw new NotFoundException('الجلسة غير موجودة');
+    if (!session.isPaused) throw new BadRequestException('الجلسة قيد التشغيل وليست متوقفة');
+
+    const now = new Date();
+    const pausedMs = session.lastPausedAt ? now.getTime() - session.lastPausedAt.getTime() : 0;
+    const additionalPauseMinutes = Math.max(1, Math.round(pausedMs / 60000));
+
+    const updated = await this.prisma.playStationSession.update({
+      where: { id },
+      data: {
+        isPaused: false,
+        lastPausedAt: null,
+        totalPauseMinutes: (session.totalPauseMinutes || 0) + additionalPauseMinutes,
+      },
+      include: { device: true },
+    });
+
+    this.eventsService.broadcast('playstation:session_resumed', {
+      sessionId: id,
+      deviceName: session.device.name,
+      totalPauseMinutes: updated.totalPauseMinutes,
+    }, cafeId);
+
+    return updated;
+  }
+
+  async transferSession(id: string, dto: TransferSessionDto, cafeId: string) {
+    if (!cafeId) throw new BadRequestException('معرف الكافيه مطلوب');
+
+    const session = await this.prisma.playStationSession.findFirst({
+      where: { id, cafeId },
+      include: { device: true },
+    });
+    if (!session) throw new NotFoundException('الجلسة غير موجودة');
+    if (session.status === 'Completed') throw new BadRequestException('الجلسة مغلقة بالفعل');
+
+    const targetDevice = await this.prisma.playStationDevice.findFirst({
+      where: { id: dto.targetDeviceId, cafeId },
+    });
+    if (!targetDevice) throw new NotFoundException('الجهاز المراد النقل إليه غير موجود');
+    if (!targetDevice.active) throw new BadRequestException('الجهاز المراد النقل إليه غير مفعل');
+
+    const activeOnTarget = await this.prisma.playStationSession.findFirst({
+      where: {
+        deviceId: dto.targetDeviceId,
+        status: { in: ['Pending Free Time', 'Running'] },
+        id: { not: id },
+      },
+    });
+    if (activeOnTarget) {
+      throw new BadRequestException('الجهاز الجديد قيد الاستخدام حالياً في جلسة أخرى');
+    }
+
+    const previousDeviceName = session.device.name;
+    const updated = await this.prisma.playStationSession.update({
+      where: { id },
+      data: {
+        deviceId: dto.targetDeviceId,
+        notes: dto.notes ? `${session.notes || ''} | نقل: ${dto.notes}` : session.notes,
+      },
+      include: { device: true },
+    });
+
+    this.eventsService.broadcast('playstation:session_transferred', {
+      sessionId: id,
+      previousDevice: previousDeviceName,
+      newDevice: targetDevice.name,
+    }, cafeId);
+
+    return updated;
+  }
+
+  /**
+   * Add drinks & snacks from cafe menu to the active PlayStation session.
+   */
+  async addSessionOrder(sessionId: string, dto: AddSessionOrderDto, employeeId: string, cafeId: string) {
+    if (!cafeId) throw new BadRequestException('معرف الكافيه مطلوب');
+
+    const session = await this.prisma.playStationSession.findFirst({
+      where: { id: sessionId, cafeId },
+      include: { device: true },
+    });
+    if (!session) throw new NotFoundException('الجلسة غير موجودة');
+    if (session.status === 'Completed') throw new BadRequestException('الجلسة مغلقة بالفعل');
+
+    if (!dto.items || dto.items.length === 0) {
+      throw new BadRequestException('يجب إضافة منتج واحد على الأقل');
+    }
+
+    // Get branch for order
+    const branch = await this.prisma.branch.findFirst({
+      where: { cafeId, active: true },
+    });
+    if (!branch) throw new BadRequestException('لا يوجد فرع مفعل للكافيه');
+
+    // Find or create customer
+    let customer = await this.prisma.customer.findFirst({
+      where: { cafeId, name: session.customerName },
+    });
+    if (!customer) {
+      customer = await this.prisma.customer.create({
+        data: {
+          cafeId,
+          branchId: branch.id,
+          name: session.customerName,
+          phone: `PS-${Date.now().toString().slice(-8)}`,
+        },
+      });
+    }
+
+    // Load products and calculate items
+    const productIds = dto.items.map((i) => i.productId);
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds }, cafeId },
+    });
+    const productMap = new Map(products.map((p) => [p.id, p]));
+
+    let orderTotal = 0;
+    const orderItemsData = dto.items.map((item) => {
+      const product = productMap.get(item.productId);
+      if (!product) throw new NotFoundException(`المنتج ${item.productId} غير موجود`);
+      const unitPrice = Number(product.price);
+      const subtotal = unitPrice * item.quantity;
+      orderTotal += subtotal;
+
+      return {
+        productId: product.id,
+        quantity: item.quantity,
+        unitPrice: new Prisma.Decimal(unitPrice),
+        productNameSnapshot: product.name,
+        notes: item.notes || null,
+      };
+    });
+
+    const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    const count = await this.prisma.order.count({ where: { cafeId } });
+    const code = `PS-${dateStr}-${String(count + 1).padStart(4, '0')}`;
+
+    const createdOrder = await this.prisma.order.create({
+      data: {
+        cafeId,
+        branchId: branch.id,
+        code,
+        customerId: customer.id,
+        status: 'NEW',
+        type: 'DINE_IN',
+        source: 'PLAYSTATION_LOUNGE',
+        total: new Prisma.Decimal(orderTotal),
+        paymentStatus: 'UNPAID',
+        notes: `طلب جلسة: ${session.device.name} (${session.customerName})${dto.notes ? ' - ' + dto.notes : ''}`,
+        playStationSessionId: sessionId,
+        items: {
+          create: orderItemsData,
+        },
+      },
+      include: {
+        items: true,
+      },
+    });
+
+    // Optional reservation of ingredients for PlayStation lounge orders
+    if (this.inventoryPipeline) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          await this.inventoryPipeline!.reserve({
+            orderId: createdOrder.id,
+            cafeId,
+            branchId: branch.id,
+            orderType: 'DINE_IN',
+            defaultPackagingMode: 'DINE_IN',
+            items: dto.items.map((i) => {
+              const p = productMap.get(i.productId)!;
+              let itemPackagingMode: 'TAKEAWAY' | 'DINE_IN' = 'DINE_IN';
+              if (i.notes && /تيك\s*اواي|takeaway|سفري/i.test(i.notes)) {
+                itemPackagingMode = 'TAKEAWAY';
+              }
+              return {
+                productId: i.productId,
+                productName: p.name,
+                quantity: i.quantity,
+                isRefrigerated: p.isRefrigerated || false,
+                refrigeratorInventoryId: p.refrigeratorInventoryId,
+                packagingMode: itemPackagingMode,
+              };
+            }),
+          }, tx);
+        });
+      } catch (err) {
+        this.logger.warn(`Inventory reservation skipped for session order: ${(err as Error).message}`);
+      }
+    }
+
+    // Notify barista & kitchen screens
+    this.eventsService.emitToBarista('kitchen:new_order', {
+      orderId: createdOrder.id,
+      code: createdOrder.code,
+      source: 'PLAYSTATION_LOUNGE',
+      deviceName: session.device.name,
+      customerName: session.customerName,
+      items: createdOrder.items,
+    }, cafeId);
+
+    return createdOrder;
+  }
+
+  /**
+   * Authoritative calculation of live session state, duration, pricing, and attached orders.
+   */
   async getSessionTimerState(id: string, cafeId: string) {
     if (!cafeId) throw new BadRequestException('معرف الكافيه مطلوب');
 
     const session = await this.prisma.playStationSession.findFirst({
       where: { id, cafeId },
-      include: { device: true, openedBy: { select: { id: true, name: true } } },
+      include: {
+        device: true,
+        openedBy: { select: { id: true, name: true } },
+        orders: {
+          include: {
+            items: true,
+          },
+        },
+      },
     });
-    if (!session) {
-      throw new NotFoundException('الجلسة غير موجودة');
-    }
+
+    if (!session) throw new NotFoundException('الجلسة غير موجودة');
 
     const now = new Date();
     const serverTime = now.toISOString();
@@ -260,57 +573,72 @@ export class PlayStationService {
 
     const isFreePhase = now < freePeriodEndTime;
 
-    // Remaining free time (for countdown display)
+    // Remaining free time
     const freeRemainingMs = isFreePhase ? Math.max(0, freePeriodEndTime.getTime() - now.getTime()) : 0;
     const freeRemainingMinutes = Math.floor(freeRemainingMs / 60000);
     const freeRemainingSeconds = Math.floor((freeRemainingMs % 60000) / 1000);
 
-    const elapsedMs = now.getTime() - session.startTime.getTime();
-    const elapsedMinutes = Math.max(0, Math.floor(elapsedMs / 60000));
-    const elapsedSeconds = Math.max(0, Math.floor((elapsedMs % 60000) / 1000));
+    // Gross elapsed
+    const grossElapsedMs = now.getTime() - session.startTime.getTime();
+    const totalPausedMs = (session.totalPauseMinutes || 0) * 60000;
+    const activeElapsedMs = Math.max(0, grossElapsedMs - totalPausedMs);
 
-    // billableStartTime is set exactly at freePeriodEndTime if free phase is over
-    let billableStartTime: string | null = null;
-    let billableMs = 0;
+    const elapsedMinutes = Math.floor(activeElapsedMs / 60000);
+    const elapsedSeconds = Math.floor((activeElapsedMs % 60000) / 1000);
+
+    // Billable calculation
+    let billableMinutes = 0;
+    let billableSeconds = 0;
     if (!isFreePhase) {
-      if (session.billableStartTime) {
-        billableStartTime = session.billableStartTime.toISOString();
-        billableMs = now.getTime() - session.billableStartTime.getTime();
+      const billableMs = Math.max(0, activeElapsedMs - 600000);
+      billableMinutes = Math.floor(billableMs / 60000);
+      billableSeconds = Math.floor((billableMs % 60000) / 1000);
+    }
+
+    // Determine hourly rate: check device custom override first, then fallback to global pricing
+    const pricing = await this.getPricing(cafeId);
+    let hourlyPrice: Prisma.Decimal;
+
+    const isMultiPlayer = session.sessionType !== 'Single Player';
+    if (isMultiPlayer && session.device.multiHourlyRate) {
+      hourlyPrice = session.device.multiHourlyRate;
+    } else if (!isMultiPlayer && session.device.hourlyRate) {
+      hourlyPrice = session.device.hourlyRate;
+    } else {
+      if (session.sessionType === 'Single Player') {
+        hourlyPrice = pricing.singlePlayerHourlyPrice;
+      } else if (session.sessionType === 'Two Players') {
+        hourlyPrice = pricing.twoPlayersHourlyPrice;
+      } else if (session.sessionType === 'Three Players') {
+        hourlyPrice = pricing.threePlayersHourlyPrice;
       } else {
-        // Compute billable start as freePeriodEndTime
-        billableStartTime = freePeriodEndTime.toISOString();
-        billableMs = now.getTime() - freePeriodEndTime.getTime();
+        hourlyPrice = pricing.fourPlayersHourlyPrice;
       }
     }
 
-    const billableMinutes = Math.max(0, Math.floor(billableMs / 60000));
-    const billableSeconds = Math.max(0, Math.floor((billableMs % 60000) / 1000));
-
-    // Calculate live cost
-    const pricing = await this.getPricing(cafeId);
-    let hourlyPrice = new Prisma.Decimal(20.00);
-    if (session.sessionType === 'Single Player') {
-      hourlyPrice = pricing.singlePlayerHourlyPrice;
-    } else if (session.sessionType === 'Two Players') {
-      hourlyPrice = pricing.twoPlayersHourlyPrice;
-    } else if (session.sessionType === 'Three Players') {
-      hourlyPrice = pricing.threePlayersHourlyPrice;
-    } else if (session.sessionType === 'Four Players') {
-      hourlyPrice = pricing.fourPlayersHourlyPrice;
-    }
-
     const ratePerMinute = hourlyPrice.div(60);
-    const totalCost = billableMinutes > 0
-      ? Number(ratePerMinute.mul(billableMinutes + (billableSeconds / 60)))
+    const timeCost = billableMinutes > 0
+      ? Number(ratePerMinute.mul(billableMinutes + billableSeconds / 60))
       : 0;
+
+    // Attached Cafe Orders
+    const ordersTotal = session.orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+    const totalCost = Math.round((timeCost + ordersTotal) * 100) / 100;
+
+    // Fixed time remaining (if targetDurationMinutes set)
+    let targetRemainingMinutes: number | null = null;
+    if (session.targetDurationMinutes) {
+      targetRemainingMinutes = Math.max(0, session.targetDurationMinutes - elapsedMinutes);
+    }
 
     return {
       sessionId: session.id,
       status: session.status,
+      isPaused: session.isPaused,
+      totalPauseMinutes: session.totalPauseMinutes,
       serverTime,
       startTime: session.startTime.toISOString(),
       freePeriodEndTime: freePeriodEndTime.toISOString(),
-      billableStartTime,
       freeRemainingMinutes,
       freeRemainingSeconds,
       elapsedMinutes,
@@ -320,93 +648,151 @@ export class PlayStationService {
       isFreePhase,
       hourlyRate: Number(hourlyPrice),
       sessionType: session.sessionType,
-      totalCost: Math.round(totalCost * 100) / 100,
+      timeCost: Math.round(timeCost * 100) / 100,
+      ordersTotal: Math.round(ordersTotal * 100) / 100,
+      totalCost,
       deviceName: session.device?.name || 'Unknown',
+      deviceType: session.device?.deviceType || 'PS5',
       customerName: session.customerName,
       employeeName: session.openedBy?.name || 'Unknown',
+      ordersCount: session.orders.length,
+      orders: session.orders,
+      targetDurationMinutes: session.targetDurationMinutes,
+      targetRemainingMinutes,
     };
   }
 
-  async closeSession(id: string, paymentStatus: string, closedById: string, cafeId: string) {
+  /**
+   * Unified Checkout & Settlement: closes session and settles all attached orders.
+   */
+  async settleAndCloseSession(
+    sessionId: string,
+    dto: SettleSessionDto,
+    closedById: string,
+    cafeId: string,
+  ) {
     if (!cafeId) throw new BadRequestException('معرف الكافيه مطلوب');
 
     const session = await this.prisma.playStationSession.findFirst({
-      where: { id, cafeId },
-      include: { device: true },
+      where: { id: sessionId, cafeId },
+      include: {
+        device: true,
+        orders: true,
+      },
     });
-    if (!session) {
-      throw new NotFoundException('الجلسة غير موجودة');
-    }
+    if (!session) throw new NotFoundException('الجلسة غير موجودة');
     if (session.status === 'Completed' || session.endTime) {
       throw new BadRequestException('هذه الجلسة مغلقة بالفعل');
     }
 
+    const timerState = await this.getSessionTimerState(sessionId, cafeId);
+    const timeCost = timerState.timeCost;
+    const ordersTotal = timerState.ordersTotal;
+    const discount = dto.discountAmount || 0;
+    const grandTotal = Math.max(0, timeCost + ordersTotal - discount);
+
     const endTime = new Date();
-    const diffMs = endTime.getTime() - session.startTime.getTime();
-    const duration = Math.max(1, Math.round(diffMs / 60000)); // duration in minutes (at least 1 min)
+    const duration = timerState.elapsedMinutes;
+    const paidAt = dto.paymentStatus === 'PAID' ? new Date() : null;
 
-    // Calculate cost based on hourly pricing
-    const pricing = await this.getPricing(cafeId);
-    let hourlyPrice = new Prisma.Decimal(20.00);
-
-    if (session.sessionType === 'Single Player') {
-      hourlyPrice = pricing.singlePlayerHourlyPrice;
-    } else if (session.sessionType === 'Two Players') {
-      hourlyPrice = pricing.twoPlayersHourlyPrice;
-    } else if (session.sessionType === 'Three Players') {
-      hourlyPrice = pricing.threePlayersHourlyPrice;
-    } else if (session.sessionType === 'Four Players') {
-      hourlyPrice = pricing.fourPlayersHourlyPrice;
-    }
-
-    // Cost formula: Cost = (hourly_rate / 60) * elapsed_minutes
-    // FREE TIME PHASE: First 10 minutes are free. Customer is NOT charged during this period.
-    let cost = new Prisma.Decimal(0.00);
-    if (duration > 10) {
-      const billableMinutes = duration - 10;
-      const ratePerMinute = hourlyPrice.div(60);
-      cost = ratePerMinute.mul(billableMinutes);
-    }
-
-    const paidAt = paymentStatus === 'PAID' ? new Date() : null;
+    const splitCount = dto.splitCount && dto.splitCount > 1 ? dto.splitCount : 1;
+    const perPlayerAmount = Math.round((grandTotal / splitCount) * 100) / 100;
 
     return this.prisma.$transaction(async (tx) => {
+      // 1. Update session to Completed
       const updatedSession = await tx.playStationSession.update({
-        where: { id },
+        where: { id: sessionId },
         data: {
           endTime,
           duration,
-          cost,
-          paymentStatus,
+          cost: new Prisma.Decimal(timeCost),
+          paymentStatus: dto.paymentStatus,
           status: 'Completed',
           closedById,
           paidAt,
+          notes: dto.notes ? `${session.notes || ''} | ${dto.notes}` : session.notes,
         },
         include: { device: true },
       });
 
-      if (paymentStatus === 'PAID' && Number(cost) > 0) {
-        await tx.staff.update({
-          where: { id: closedById },
-          data: { currentCashWallet: { increment: cost } }
+      // 2. Mark all attached orders as PAID
+      if (session.orders.length > 0) {
+        await tx.order.updateMany({
+          where: { playStationSessionId: sessionId },
+          data: {
+            paymentStatus: dto.paymentStatus,
+            paymentMethod: dto.paymentMethod,
+            paid: dto.paymentStatus === 'PAID',
+            paidAt,
+            closedAt: endTime,
+          },
         });
+      }
+
+      // 3. Register cash wallet increment & financial transaction if cash
+      if (dto.paymentStatus === 'PAID' && grandTotal > 0) {
+        if (dto.paymentMethod === 'CASH') {
+          await tx.staff.update({
+            where: { id: closedById },
+            data: { currentCashWallet: { increment: grandTotal } },
+          });
+        }
 
         await tx.financialTransaction.create({
           data: {
             cafeId,
-            amount: cost,
+            amount: new Prisma.Decimal(grandTotal),
             type: 'income',
-            source: 'ps',
+            source: 'ps_lounge',
             referenceId: updatedSession.id,
             employeeId: closedById,
-          }
+          },
         });
       }
 
-      this.logger.log(`[SESSION END] Session: ${id} | Duration: ${duration}m | Cost: ${cost} | Payment: ${paymentStatus}`);
+      this.eventsService.broadcast('playstation:session_settled', {
+        sessionId,
+        deviceName: session.device.name,
+        customerName: session.customerName,
+        timeCost,
+        ordersTotal,
+        grandTotal,
+        splitCount,
+        perPlayerAmount,
+        paymentMethod: dto.paymentMethod,
+        paymentStatus: dto.paymentStatus,
+      }, cafeId);
 
-      return updatedSession;
+      return {
+        session: updatedSession,
+        receipt: {
+          sessionId,
+          deviceName: session.device.name,
+          customerName: session.customerName,
+          durationMinutes: duration,
+          timeCost,
+          ordersTotal,
+          discountAmount: discount,
+          grandTotal,
+          splitCount,
+          perPlayerAmount,
+          paymentMethod: dto.paymentMethod,
+          paymentStatus: dto.paymentStatus,
+          closedAt: endTime,
+        },
+      };
     });
+  }
+
+  // ── BACKWARD COMPATIBLE SESSION METHODS ──
+
+  async closeSession(id: string, paymentStatus: string, closedById: string, cafeId: string) {
+    return this.settleAndCloseSession(
+      id,
+      { paymentMethod: 'CASH', paymentStatus },
+      closedById,
+      cafeId,
+    );
   }
 
   async collectPayment(id: string, employeeId: string, cafeId: string) {
@@ -414,15 +800,14 @@ export class PlayStationService {
 
     const session = await this.prisma.playStationSession.findFirst({
       where: { id, cafeId },
+      include: { orders: true },
     });
-    if (!session) {
-      throw new NotFoundException('الجلسة غير موجودة');
-    }
-    if (session.paymentStatus === 'PAID') {
-      throw new BadRequestException('هذه الجلسة مدفوعة بالفعل');
-    }
+    if (!session) throw new NotFoundException('الجلسة غير موجودة');
+    if (session.paymentStatus === 'PAID') throw new BadRequestException('هذه الجلسة مدفوعة بالفعل');
 
-    const cost = session.cost ? Number(session.cost) : 0;
+    const cost = Number(session.cost || 0);
+    const ordersTotal = session.orders.reduce((sum, o) => sum + Number(o.total || 0), 0);
+    const total = cost + ordersTotal;
 
     return this.prisma.$transaction(async (tx) => {
       const updatedSession = await tx.playStationSession.update({
@@ -435,25 +820,32 @@ export class PlayStationService {
         include: { device: true },
       });
 
-      if (cost > 0) {
+      await tx.order.updateMany({
+        where: { playStationSessionId: id },
+        data: {
+          paymentStatus: 'PAID',
+          paid: true,
+          paidAt: new Date(),
+        },
+      });
+
+      if (total > 0) {
         await tx.staff.update({
           where: { id: employeeId },
-          data: { currentCashWallet: { increment: cost } }
+          data: { currentCashWallet: { increment: total } },
         });
 
         await tx.financialTransaction.create({
           data: {
             cafeId,
-            amount: cost,
+            amount: new Prisma.Decimal(total),
             type: 'income',
-            source: 'ps',
+            source: 'ps_lounge',
             referenceId: updatedSession.id,
-            employeeId: employeeId,
-          }
+            employeeId,
+          },
         });
       }
-
-      this.logger.log(`[SESSION PAYMENT COLLECT] Session: ${id} | Cost: ${cost} | Collected By: ${employeeId}`);
 
       return updatedSession;
     });
@@ -472,14 +864,10 @@ export class PlayStationService {
       cafeId,
     };
 
-    if (deviceId) {
-      where.deviceId = deviceId;
-    }
-
+    if (deviceId) where.deviceId = deviceId;
     if (status) {
       where.status = status;
     } else {
-      // Default to returning only completed sessions to retain compatibility
       where.status = 'Completed';
     }
 
@@ -491,7 +879,17 @@ export class PlayStationService {
 
     return this.prisma.playStationSession.findMany({
       where,
-      include: { device: true, openedBy: { select: { id: true, name: true } } },
+      include: {
+        device: true,
+        openedBy: { select: { id: true, name: true } },
+        orders: {
+          select: {
+            id: true,
+            code: true,
+            total: true,
+          },
+        },
+      },
       orderBy: { startTime: 'desc' },
     });
   }
@@ -503,59 +901,73 @@ export class PlayStationService {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // All completed sessions
     const allCompleted = await this.prisma.playStationSession.findMany({
       where: { cafeId, status: 'Completed', endTime: { not: null } },
-      include: { device: true, openedBy: { select: { id: true, name: true } } },
+      include: {
+        device: true,
+        openedBy: { select: { id: true, name: true } },
+        orders: { select: { total: true } },
+      },
     });
 
-    // Completed today
-    const todayCompleted = allCompleted.filter(s => s.endTime! >= todayStart);
+    const todayCompleted = allCompleted.filter((s) => s.endTime! >= todayStart);
+    const monthCompleted = allCompleted.filter((s) => s.endTime! >= monthStart);
 
-    // Completed this month
-    const monthCompleted = allCompleted.filter(s => s.endTime! >= monthStart);
-
-    // Active sessions
     const activeSessions = await this.prisma.playStationSession.findMany({
       where: { cafeId, status: { in: ['Pending Free Time', 'Running'] } },
       include: { device: true, openedBy: { select: { id: true, name: true } } },
     });
 
-    // Revenue calculations
-    const totalRevenue = allCompleted.reduce((sum, s) => sum + (s.paymentStatus === 'PAID' ? Number(s.cost || 0) : 0), 0);
-    const todayRevenue = todayCompleted.reduce((sum, s) => sum + (s.paymentStatus === 'PAID' ? Number(s.cost || 0) : 0), 0);
-    const monthRevenue = monthCompleted.reduce((sum, s) => sum + (s.paymentStatus === 'PAID' ? Number(s.cost || 0) : 0), 0);
+    const calcRev = (session: any) => {
+      const ordersTotal = session.orders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0);
+      return session.paymentStatus === 'PAID' ? Number(session.cost || 0) + ordersTotal : 0;
+    };
 
-    // Revenue per device
+    const totalRevenue = allCompleted.reduce((sum, s) => sum + calcRev(s), 0);
+    const todayRevenue = todayCompleted.reduce((sum, s) => sum + calcRev(s), 0);
+    const monthRevenue = monthCompleted.reduce((sum, s) => sum + calcRev(s), 0);
+
     const deviceRevenueMap = new Map<string, { deviceId: string; deviceName: string; revenue: number; sessions: number }>();
     for (const s of allCompleted) {
       const did = s.deviceId;
       const existing = deviceRevenueMap.get(did);
-      const revenue = s.paymentStatus === 'PAID' ? Number(s.cost || 0) : 0;
+      const revenue = calcRev(s);
       if (existing) {
         existing.revenue += revenue;
         existing.sessions++;
       } else {
-        deviceRevenueMap.set(did, { deviceId: did, deviceName: s.device?.name || 'Unknown', revenue, sessions: 1 });
+        deviceRevenueMap.set(did, {
+          deviceId: did,
+          deviceName: s.device?.name || 'Unknown',
+          revenue,
+          sessions: 1,
+        });
       }
     }
 
-    // Revenue per employee
     const employeeRevenueMap = new Map<string, { employeeId: string; employeeName: string; revenue: number; sessions: number }>();
     for (const s of allCompleted) {
       const eid = s.employeeId;
       const existing = employeeRevenueMap.get(eid);
-      const revenue = s.paymentStatus === 'PAID' ? Number(s.cost || 0) : 0;
+      const revenue = calcRev(s);
       if (existing) {
         existing.revenue += revenue;
         existing.sessions++;
       } else {
-        employeeRevenueMap.set(eid, { employeeId: eid, employeeName: s.openedBy?.name || 'Unknown', revenue, sessions: 1 });
+        employeeRevenueMap.set(eid, {
+          employeeId: eid,
+          employeeName: s.openedBy?.name || 'Unknown',
+          revenue,
+          sessions: 1,
+        });
       }
     }
 
-    const unpaidSessions = allCompleted.filter(s => s.paymentStatus === 'UNPAID');
-    const unpaidRevenue = unpaidSessions.reduce((sum, s) => sum + Number(s.cost || 0), 0);
+    const unpaidSessions = allCompleted.filter((s) => s.paymentStatus === 'UNPAID');
+    const unpaidRevenue = unpaidSessions.reduce((sum, s) => {
+      const ordersTotal = s.orders.reduce((sm: number, o: any) => sm + Number(o.total || 0), 0);
+      return sum + Number(s.cost || 0) + ordersTotal;
+    }, 0);
 
     return {
       totalRevenue: Math.round(totalRevenue * 100) / 100,
@@ -577,31 +989,30 @@ export class PlayStationService {
 
     const sessions = await this.prisma.playStationSession.findMany({
       where: { cafeId, endTime: { not: null } },
-      include: { openedBy: { select: { id: true, name: true } } },
+      include: {
+        openedBy: { select: { id: true, name: true } },
+        orders: { select: { total: true } },
+      },
     });
 
-    const map = new Map<string, {
-      employeeId: string;
-      employeeName: string;
-      totalSessions: number;
-      revenue: number;
-    }>();
+    const map = new Map<string, { employeeId: string; employeeName: string; totalSessions: number; revenue: number }>();
 
     for (const s of sessions) {
       const empId = s.employeeId;
       const empName = s.openedBy?.name || 'Unknown';
-      const cost = s.cost ? Number(s.cost) : 0;
+      const cost = Number(s.cost || 0);
+      const ordersTotal = s.orders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0);
 
       const existing = map.get(empId);
       if (existing) {
         existing.totalSessions++;
-        existing.revenue += cost;
+        existing.revenue += cost + ordersTotal;
       } else {
         map.set(empId, {
           employeeId: empId,
           employeeName: empName,
           totalSessions: 1,
-          revenue: cost,
+          revenue: cost + ordersTotal,
         });
       }
     }
@@ -623,13 +1034,8 @@ export class PlayStationService {
       status: 'Completed',
     };
 
-    if (employeeId) {
-      where.employeeId = employeeId;
-    }
-
-    if (deviceId) {
-      where.deviceId = deviceId;
-    }
+    if (employeeId) where.employeeId = employeeId;
+    if (deviceId) where.deviceId = deviceId;
 
     if (dateFrom || dateTo) {
       where.startTime = {};
@@ -642,15 +1048,11 @@ export class PlayStationService {
       include: {
         openedBy: { select: { id: true, name: true } },
         closedBy: { select: { id: true, name: true } },
+        orders: { select: { total: true } },
       },
     });
 
-    const employeeMap = new Map<string, {
-      employeeId: string;
-      employeeName: string;
-      totalSessions: number;
-      revenue: number;
-    }>();
+    const employeeMap = new Map<string, { employeeId: string; employeeName: string; totalSessions: number; revenue: number }>();
 
     let totalDuration = 0;
     let completedCount = 0;
@@ -662,19 +1064,21 @@ export class PlayStationService {
     for (const s of sessions) {
       const empId = s.employeeId;
       const empName = s.openedBy?.name || 'Unknown';
-      const cost = s.cost ? Number(s.cost) : 0;
+      const cost = Number(s.cost || 0);
+      const ordersTotal = s.orders.reduce((sum: number, o: any) => sum + Number(o.total || 0), 0);
+      const totalSessionRev = cost + ordersTotal;
       const duration = s.duration || 0;
 
       const existing = employeeMap.get(empId);
       if (existing) {
         existing.totalSessions++;
-        existing.revenue += cost;
+        existing.revenue += totalSessionRev;
       } else {
         employeeMap.set(empId, {
           employeeId: empId,
           employeeName: empName,
           totalSessions: 1,
-          revenue: cost,
+          revenue: totalSessionRev,
         });
       }
 
@@ -683,20 +1087,20 @@ export class PlayStationService {
 
       if (s.paymentStatus === 'PAID') {
         paidCount++;
-        paidRevenue += cost;
+        paidRevenue += totalSessionRev;
       } else {
         unpaidCount++;
-        unpaidRevenue += cost;
+        unpaidRevenue += totalSessionRev;
       }
     }
 
-    const sessionsPerEmployee = Array.from(employeeMap.values()).map(e => ({
+    const sessionsPerEmployee = Array.from(employeeMap.values()).map((e) => ({
       employeeId: e.employeeId,
       employeeName: e.employeeName,
       count: e.totalSessions,
     }));
 
-    const revenuePerEmployee = Array.from(employeeMap.values()).map(e => ({
+    const revenuePerEmployee = Array.from(employeeMap.values()).map((e) => ({
       employeeId: e.employeeId,
       employeeName: e.employeeName,
       revenue: e.revenue,

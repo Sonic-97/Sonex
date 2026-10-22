@@ -1,15 +1,52 @@
-import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsNumber, IsEnum, Min, IsUUID } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsBoolean, IsNumber, IsEnum, Min, IsUUID, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
 export class CreateDeviceDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+
+  @IsString()
+  @IsOptional()
+  deviceType?: string; // 'PS5' | 'PS4' | 'VIP_ROOM' | 'BILLIARDS' | 'PING_PONG'
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  hourlyRate?: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  multiHourlyRate?: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }
 
 export class UpdateDeviceDto {
   @IsString()
   @IsOptional()
   name?: string;
+
+  @IsString()
+  @IsOptional()
+  deviceType?: string;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  hourlyRate?: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  multiHourlyRate?: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
 
   @IsBoolean()
   @IsOptional()
@@ -52,6 +89,15 @@ export class StartSessionDto {
   @IsEnum(SessionType)
   sessionType: SessionType;
 
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  targetDurationMinutes?: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+
   @IsUUID()
   @IsOptional()
   employeeId?: string;
@@ -61,4 +107,61 @@ export class CloseSessionDto {
   @IsString()
   @IsNotEmpty()
   paymentStatus: string; // PAID, UNPAID
+}
+
+export class AddSessionOrderItemDto {
+  @IsUUID()
+  productId: string;
+
+  @IsNumber()
+  @Min(1)
+  quantity: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
+export class AddSessionOrderDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AddSessionOrderItemDto)
+  items: AddSessionOrderItemDto[];
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
+export class TransferSessionDto {
+  @IsUUID()
+  targetDeviceId: string;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
+}
+
+export class SettleSessionDto {
+  @IsString()
+  @IsNotEmpty()
+  paymentMethod: string; // 'CASH' | 'INSTAPAY' | 'VODAFONE_CASH' | 'CARD'
+
+  @IsString()
+  @IsNotEmpty()
+  paymentStatus: string; // 'PAID' | 'UNPAID'
+
+  @IsNumber()
+  @Min(1)
+  @IsOptional()
+  splitCount?: number;
+
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @IsOptional()
+  discountAmount?: number;
+
+  @IsString()
+  @IsOptional()
+  notes?: string;
 }

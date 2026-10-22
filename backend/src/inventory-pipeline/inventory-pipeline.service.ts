@@ -55,6 +55,7 @@ export class InventoryPipelineService {
       totalNeeded: Prisma.Decimal;
       costPerUnit: Prisma.Decimal;
       cafeId: string;
+      materialType?: 'RECIPE_INGREDIENT' | 'PACKAGING_MATERIAL';
     }>();
 
     const productIds = [...new Set(items.map(i => i.productId))];
@@ -108,6 +109,52 @@ export class InventoryPipelineService {
             costPerUnit: new Prisma.Decimal(0),
             cafeId,
           });
+        }
+      }
+    }
+
+    // --- B3: Add Packaging Materials ONLY for items served as TAKEAWAY ---
+    // Rule: Dine-in drinks use reusable porcelain/glassware -> ZERO takeaway cup/lid deduction!
+    // Takeaway / Delivery drinks -> deduct paper/plastic cups, lids, sleeves, straws.
+    const packagingByProduct = new Map<string, any[]>();
+    const hasTakeawayItems = items.some(item => {
+      const mode = item.packagingMode || params.defaultPackagingMode || (params.orderType === 'TAKEAWAY' || params.orderType === 'DELIVERY' ? 'TAKEAWAY' : 'DINE_IN');
+      return mode === 'TAKEAWAY';
+    });
+
+    if (hasTakeawayItems) {
+      const packagingList = await tx.packagingMaterial.findMany({
+        where: { productId: { in: productIds } },
+        include: { inventory: { select: { itemName: true, unit: true, currentQty: true, reservedQty: true, costPerUnit: true, cafeId: true } } },
+      });
+      for (const p of packagingList) {
+        const list = packagingByProduct.get(p.productId) ?? [];
+        list.push(p);
+        packagingByProduct.set(p.productId, list);
+      }
+
+      for (const item of items) {
+        const mode = item.packagingMode || params.defaultPackagingMode || (params.orderType === 'TAKEAWAY' || params.orderType === 'DELIVERY' ? 'TAKEAWAY' : 'DINE_IN');
+        if (mode !== 'TAKEAWAY') continue; // Dine-in: reusable cup, 0 takeaway cup deduction!
+
+        const productPackaging = packagingByProduct.get(item.productId) ?? [];
+        for (const pm of productPackaging) {
+          const convertedQty = convertUnit(Number(pm.quantity), pm.unit, pm.inventory.unit);
+          const totalNeeded = new Prisma.Decimal(convertedQty * item.quantity);
+          const existing = recipeMap.get(pm.inventoryId);
+          if (existing) {
+            existing.totalNeeded = existing.totalNeeded.plus(totalNeeded);
+          } else {
+            recipeMap.set(pm.inventoryId, {
+              inventoryId: pm.inventoryId,
+              itemName: pm.inventory.itemName,
+              unit: pm.inventory.unit,
+              totalNeeded,
+              costPerUnit: pm.inventory.costPerUnit,
+              cafeId: pm.inventory.cafeId,
+              materialType: 'PACKAGING_MATERIAL',
+            });
+          }
         }
       }
     }
@@ -179,6 +226,7 @@ export class InventoryPipelineService {
         inventoryId: ing.inventoryId,
         itemName: ing.itemName,
         quantity: ing.totalNeeded.toString(),
+        materialType: ing.materialType || 'RECIPE_INGREDIENT',
       });
     }
 
@@ -244,11 +292,18 @@ export class InventoryPipelineService {
         },
       });
 
+      const isPackaging = await tx.packagingMaterial.findFirst({
+        where: { inventoryId: res.inventoryId },
+        select: { id: true },
+      });
+      const materialType = isPackaging ? 'PACKAGING_MATERIAL' : 'RECIPE_INGREDIENT';
+
       result.inventoryConfirmed.push({
         inventoryId: res.inventoryId,
         itemName: res.inventory.itemName,
         deducted: res.quantity.toString(),
         remaining: confirmResult.after.currentQty.toString(),
+        materialType,
       });
 
       lowStockItems.push({

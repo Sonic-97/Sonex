@@ -12,7 +12,13 @@ describe('BossIntegrationService', () => {
   let mockDriverAssignment: any;
 
   beforeEach(() => {
-    mockPrisma = {};
+    mockPrisma = {
+      product: {
+        findMany: jest.fn().mockResolvedValue([
+          { id: 'prod_latte', name: 'Caffe Latte', price: 40 },
+        ]),
+      },
+    };
     mockUnifiedOrders = {
       create: jest.fn().mockResolvedValue({ id: 'ord_boss_01', code: 'ORD-101' }),
     };
@@ -84,5 +90,42 @@ describe('BossIntegrationService', () => {
     expect(mockRunningAccount.recordCreditCharge).toHaveBeenCalledWith('cust_01', 'branch_01', 95);
     expect(mockRecipeBOM.processOrderRecipeDeductions).toHaveBeenCalled();
     expect(mockDriverAssignment.generateDriverPayload).toHaveBeenCalled();
+  });
+
+  it('ignores client-supplied unitPrice and uses the server price', async () => {
+    const dto = {
+      cafeId: 'cafe_01',
+      branchId: 'branch_01',
+      customerId: 'cust_01',
+      orderType: BossOrderType.TAKEAWAY,
+      paymentMethod: BossPaymentMethod.CASH,
+      items: [
+        { productId: 'prod_latte', productName: 'Caffe Latte', quantity: 2, unitPrice: 1 },
+      ],
+    };
+
+    const res = await service.placeBossCafeOrder(dto);
+
+    expect(res.isSuccess).toBe(true);
+    expect(res.value.subtotal).toBe(80);
+  });
+
+  it('fails when a product does not belong to the cafe', async () => {
+    mockPrisma.product.findMany.mockResolvedValueOnce([]);
+
+    const dto = {
+      cafeId: 'cafe_01',
+      branchId: 'branch_01',
+      customerId: 'cust_01',
+      orderType: BossOrderType.TAKEAWAY,
+      paymentMethod: BossPaymentMethod.CASH,
+      items: [
+        { productId: 'prod_unknown', productName: 'Unknown', quantity: 1, unitPrice: 10 },
+      ],
+    };
+
+    const res = await service.placeBossCafeOrder(dto);
+
+    expect(res.isSuccess).toBe(false);
   });
 });

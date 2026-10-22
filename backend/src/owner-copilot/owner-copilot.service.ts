@@ -6,6 +6,7 @@ import { OwnerCopilotAskDto, OwnerCopilotFeedbackDto } from './owner-copilot.dto
 import { percentageChange, roundMoney, roundRate } from './owner-business-metrics';
 import { OwnerCopilotToolsService } from './owner-copilot-tools.service';
 import { OwnerCopilotUnderstandingService } from './owner-copilot-understanding.service';
+import { SonexBrainService } from './sonex-brain.service';
 import {
   OwnerCopilotContextState,
   OwnerCopilotIntent,
@@ -60,6 +61,7 @@ export class OwnerCopilotService {
     private readonly understanding: OwnerCopilotUnderstandingService,
     private readonly tools: OwnerCopilotToolsService,
     @Optional() private readonly ownerActions?: OwnerActionsService,
+    @Optional() private readonly sonexBrain?: SonexBrainService,
   ) {}
 
   async ask(
@@ -97,6 +99,32 @@ export class OwnerCopilotService {
     scope = await this.applyConversationScope(scope, intent, previous);
     this.enforceIntentPermission(scope, intent.intent);
 
+    // 0. Sonex AI Brain Reasoning Layer
+    if (this.sonexBrain) {
+      const brainResult = await this.sonexBrain.reason(safeUser, dto.question, scope.selectedBranchIds[0], sessionId);
+      if (brainResult) {
+        const response = this.completeResponse(
+          scope,
+          intent,
+          sessionId,
+          startedAt,
+          {
+            directAnswer: brainResult.directAnswer,
+            keyNumbers: brainResult.keyNumbers,
+            why: brainResult.why,
+            recommendedActions: brainResult.recommendedActions,
+            warnings: brainResult.warnings,
+            proposalOnly: brainResult.proposalOnly,
+            actionProposal: brainResult.actionProposal,
+          },
+          [],
+        );
+        this.saveContext(contextKey, scope, intent);
+        this.audit(safeUser, intent, [], brainResult.actionProposal ? 'ACTION_PROPOSED' : 'BRAIN_RESPONSE', response.latencyMs);
+        return response;
+      }
+    }
+
     if (intent.writeActionRequested) {
       const preparation = this.ownerActions
         ? await this.ownerActions.prepareFromNaturalLanguage(safeUser, dto.question, scope.selectedBranchIds[0])
@@ -106,26 +134,58 @@ export class OwnerCopilotService {
           warnings: ['No business data changed.'],
           proposal: undefined,
         };
-      if (preparation.blocked) this.metrics.writeActionRequestsBlocked += 1;
-      const response = this.completeResponse(
+      if (preparation.proposal) {
+        const response = this.completeResponse(
+          scope,
+          intent,
+          sessionId,
+          startedAt,
+          {
+            directAnswer: preparation.message,
+            recommendedActions: [`راجع المقترح ${preparation.proposal.proposalId} والتغييرات والمخاطر ووقت الانتهاء قبل القرار.`],
+            warnings: preparation.warnings,
+            proposalOnly: true,
+            actionProposal: preparation.proposal,
+          },
+          [],
+        );
+        this.saveContext(contextKey, scope, intent);
+        this.audit(safeUser, intent, [], 'ACTION_PROPOSED', response.latencyMs);
+        return response;
+      }
+      if ((preparation as any).handled && !preparation.blocked && preparation.message) {
+        const response = this.completeResponse(
+          scope,
+          intent,
+          sessionId,
+          startedAt,
+          {
+            directAnswer: preparation.message,
+            warnings: preparation.warnings,
+          },
+          [],
+        );
+        this.saveContext(contextKey, scope, intent);
+        this.audit(safeUser, intent, [], 'PROPOSAL_CLARIFICATION', response.latencyMs);
+        return response;
+      }
+
+      this.metrics.writeActionRequestsBlocked += 1;
+      const blockedResponse = this.completeResponse(
         scope,
         intent,
         sessionId,
         startedAt,
         {
-          directAnswer: preparation.message,
-          recommendedActions: preparation.proposal
-            ? [`راجع المقترح ${preparation.proposal.proposalId} والتغييرات والمخاطر ووقت الانتهاء قبل القرار.`]
-            : [],
-          warnings: preparation.warnings,
+          directAnswer: 'مش هنفذ أي تغيير على بيانات الكافيه من المحادثة. أقدر أجهّز مقترح، لكن التنفيذ محتاج اعتماد منفصل.',
+          warnings: ['لم يتم تغيير أي بيانات. الطلب ده مقترح فقط.'],
           proposalOnly: true,
-          actionProposal: preparation.proposal,
         },
         [],
       );
       this.saveContext(contextKey, scope, intent);
-      this.audit(safeUser, intent, [], preparation.proposal ? 'ACTION_PROPOSED' : 'WRITE_BLOCKED', response.latencyMs);
-      return response;
+      this.audit(safeUser, intent, [], 'WRITE_ACTION_BLOCKED', blockedResponse.latencyMs);
+      return blockedResponse;
     }
 
     if (intent.intent === 'OWNER_FORECAST_REQUEST') {
@@ -180,11 +240,14 @@ export class OwnerCopilotService {
   async suggestedQuestions(user: OwnerCopilotUser | null | undefined, requestBranchId?: string) {
     const scope = await this.resolveScope(this.requireAuthenticatedUser(user), requestBranchId);
     const suggestions = [
+      'عايز اعمل منيو للكافيه بتاعي',
+      'إيه اللي أنا مش واخد بالي منه في الكافيه؟',
+      'احسبلي تكلفة سبانش لاتيه',
+      'كيلو البن زاد بقى بـ 600 جنيه، شوف المنتجات اللي اتأثرت',
+      'اشتريت 10 كيلو بن بـ 5000 جنيه من الحاج أحمد كاش من الدرج',
       'المبيعات عملت إيه النهارده؟',
-      'إيه أهم 3 مشاكل محتاجة تدخلي؟',
       'إيه المنتجات الأعلى ربحية؟',
       'قارن الفروع الأسبوع ده.',
-      'إيه المخزون الحرج؟',
     ];
     if (scope.permissions.includes('FINANCE_READ')) suggestions.push('ليه صافي الربح اتغير آخر 7 أيام؟');
     return { suggestions, readOnly: true, branches: scope.selectedBranchNames };

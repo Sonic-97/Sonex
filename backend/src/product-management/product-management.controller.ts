@@ -51,6 +51,15 @@ export class ProductManagementController {
     return this.service.recalculateCost(id, cafeId);
   }
 
+  @Get('products/:id/cup-cost')
+  async getCupCost(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query('sizeName') sizeName?: string,
+    @cafeId() cafeId?: string,
+  ) {
+    return this.service.getDetailedCupCost(id, cafeId, sizeName);
+  }
+
   // ── RECIPE ──
 
   @Get('products/:id/recipe')

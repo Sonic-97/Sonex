@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { MessagingService } from '../messaging/messaging.service';
+import { WhatsappService } from '../whatsapp/whatsapp.service';
 
 export interface PendingAiWaiterOffer {
   phone: string;
@@ -19,7 +19,7 @@ export class AiWaiterService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly messagingService: MessagingService,
+    private readonly whatsappService: WhatsappService,
   ) {}
 
   async trySendProactive(cafeId: string, customerId: string): Promise<boolean> {
@@ -27,7 +27,7 @@ export class AiWaiterService {
       const habit = await this.prisma.customerHabit.findFirst({
         where: { customerId, cafeId },
         include: {
-          customer: { select: { id: true, name: true, telegramId: true, phone: true } },
+          customer: { select: { id: true, name: true, phone: true, phoneJid: true, lidJid: true, lastKnownJid: true } },
         },
       });
       if (!habit?.aiWaiterActive || !habit.usualTime) return false;
@@ -60,15 +60,21 @@ export class AiWaiterService {
 
       const message = `☀️ صباح الخير يا ${customerName}\n\nكالعادة بتحب:\n☕ ${productName}\n\nتحب نبدأ تجهيزها؟\n\n1️⃣ نعم\n2️⃣ لا\n3️⃣ تعديل الطلب`;
 
-      const chatId = habit.customer.telegramId?.toString();
-      if (chatId) {
-        await this.messagingService.sendReply(chatId, message, cafeId);
+      const targetJid =
+        habit.customer.phoneJid ||
+        habit.customer.lidJid ||
+        habit.customer.lastKnownJid ||
+        habit.customer.phone;
+      if (targetJid) {
+        const result = await this.whatsappService.sendMessage(targetJid, message, cafeId);
+        if (!result.success) return false;
+
         await this.prisma.customerHabit.update({
           where: { customerId },
           data: { lastProactiveSentAt: new Date() },
         });
 
-        const phone = `tg_${chatId}`;
+        const phone = habit.customer.phone || targetJid;
         this.pendingOffers.set(this.offerKey(cafeId, phone), {
           phone,
           cafeId,

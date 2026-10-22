@@ -12,6 +12,9 @@ describe('OwnerActionPolicyService', () => {
     UPDATE_MINIMUM_STOCK_LEVEL: 'MEDIUM', CREATE_EXPENSE_DRAFT: 'LOW', CREATE_APPROVED_EXPENSE: 'HIGH',
     CREATE_STAFF_SCHEDULE_DRAFT: 'LOW', APPLY_APPROVED_STAFF_SCHEDULE: 'HIGH',
     CREATE_CUSTOMER_COMPENSATION_DRAFT: 'LOW', APPLY_APPROVED_COMPENSATION: 'HIGH',
+    CREATE_PRODUCT_WITH_RECIPE: 'LOW', RECORD_INVENTORY_PURCHASE: 'MEDIUM', RECORD_STOCK_WASTE: 'MEDIUM',
+    DELETE_PRODUCT: 'HIGH', UPDATE_PRODUCT_RECIPE: 'MEDIUM', CREATE_CATEGORY: 'LOW',
+    DELETE_CATEGORY: 'MEDIUM', CREATE_ACTIVE_PROMOTION: 'MEDIUM',
   };
 
   it.each(OWNER_ACTION_TYPES)('%s has deterministic risk and permission metadata', (actionType) => {
@@ -63,10 +66,12 @@ describe('OwnerActionPolicyService', () => {
     expect(() => policy.assertExecutable('CREATE_APPROVED_PURCHASE_ORDER')).toThrow(UnprocessableEntityException);
   });
 
-  it('exposes only six typed executable actions', () => {
+  it('exposes the typed executable actions', () => {
     expect(OWNER_ACTION_TYPES.filter((type) => policy.definition(type).executable)).toEqual([
       'UPDATE_PRODUCT_PRICE', 'UPDATE_PRODUCT_AVAILABILITY', 'DISABLE_PRODUCT', 'ENABLE_PRODUCT',
-      'UPDATE_MINIMUM_STOCK_LEVEL', 'CREATE_APPROVED_EXPENSE',
+      'UPDATE_MINIMUM_STOCK_LEVEL', 'CREATE_APPROVED_EXPENSE', 'CREATE_PRODUCT_WITH_RECIPE',
+      'RECORD_INVENTORY_PURCHASE', 'RECORD_STOCK_WASTE', 'DELETE_PRODUCT', 'UPDATE_PRODUCT_RECIPE',
+      'CREATE_CATEGORY', 'DELETE_CATEGORY', 'CREATE_ACTIVE_PROMOTION',
     ]);
   });
 

@@ -378,6 +378,92 @@ export class ProductManagementService {
     return product;
   }
 
+  async getDetailedCupCost(id: string, cafeId?: string, sizeName?: string) {
+    const product = await this.prisma.product.findUnique({
+      where: { id },
+    });
+    this.verifyOwnership(product, cafeId, 'المنتج');
+    if (!product) throw new NotFoundException('المنتج غير موجود');
+
+    const recipe = await this.prisma.recipeIngredient.findMany({
+      where: { productId: id },
+      include: { inventory: true },
+    });
+
+    const packaging = await this.prisma.packagingMaterial.findMany({
+      where: { productId: id },
+      include: { inventory: true },
+    });
+
+    const sellingPrice = Number(product.price);
+
+    let costPercent = 100;
+    if (sizeName) {
+      const size = await this.prisma.productSize.findUnique({
+        where: { cafeId_productId_name: { cafeId: product.cafeId, productId: id, name: sizeName } },
+      });
+      if (size) costPercent = Number(size.costPercent);
+    }
+
+    const ingredientsBreakdown = recipe.map((r) => {
+      const qty = Number(r.quantity) * (costPercent / 100);
+      const unitCost = Number(r.inventory?.costPerUnit ?? 0);
+      const wasteFactor = 1 + (Number(r.wastePercent ?? 0) / 100);
+      const itemCost = qty * unitCost * wasteFactor;
+      return {
+        inventoryId: r.inventoryId,
+        name: r.inventory?.itemName || 'خامة',
+        quantity: qty,
+        unit: r.unit,
+        costPerUnit: unitCost,
+        itemCost: Math.round(itemCost * 100) / 100,
+      };
+    });
+
+    const packagingBreakdown = packaging.map((p) => {
+      const qty = Number(p.quantity);
+      const unitCost = Number(p.inventory?.costPerUnit ?? 0);
+      const itemCost = qty * unitCost;
+      return {
+        inventoryId: p.inventoryId,
+        name: p.name || p.inventory?.itemName || 'مادة تعبئة',
+        quantity: qty,
+        unit: p.unit,
+        costPerUnit: unitCost,
+        itemCost: Math.round(itemCost * 100) / 100,
+      };
+    });
+
+    const ingredientCost = Math.round(ingredientsBreakdown.reduce((s, i) => s + i.itemCost, 0) * 100) / 100;
+    const packagingCost = Math.round(packagingBreakdown.reduce((s, p) => s + p.itemCost, 0) * 100) / 100;
+
+    const dineInCost = Math.round(ingredientCost * 100) / 100;
+    const takeawayCost = Math.round((ingredientCost + packagingCost) * 100) / 100;
+
+    const dineInProfit = Math.round((sellingPrice - dineInCost) * 100) / 100;
+    const takeawayProfit = Math.round((sellingPrice - takeawayCost) * 100) / 100;
+
+    const dineInMarginPercent = sellingPrice > 0 ? Math.round((dineInProfit / sellingPrice) * 1000) / 10 : 0;
+    const takeawayMarginPercent = sellingPrice > 0 ? Math.round((takeawayProfit / sellingPrice) * 1000) / 10 : 0;
+
+    return {
+      productId: product.id,
+      productName: product.name,
+      sellingPrice,
+      sizeName: sizeName || null,
+      ingredientCost,
+      packagingCost,
+      dineInCost,
+      takeawayCost,
+      dineInProfit,
+      takeawayProfit,
+      dineInMarginPercent,
+      takeawayMarginPercent,
+      ingredientsBreakdown,
+      packagingBreakdown,
+    };
+  }
+
   // ── RECIPE INGREDIENTS ──
 
   async getRecipe(productId: string, cafeId?: string) {

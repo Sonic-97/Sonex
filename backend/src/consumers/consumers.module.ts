@@ -13,7 +13,6 @@ import { OrderFlowModule } from '../order-flow/order-flow.module';
 import { MessagesModule } from '../messages/messages.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 import { ReplyRouterModule } from '../reply-router/reply-router.module';
-import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
   imports: [
@@ -24,7 +23,6 @@ import { MessagingModule } from '../messaging/messaging.module';
     MessagesModule,
     WhatsappModule,
     ReplyRouterModule,
-    MessagingModule,
   ],
   providers: [
     SenderResolverConsumer,
