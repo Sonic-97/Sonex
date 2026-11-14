@@ -844,7 +844,7 @@ export class CoffeeOrderService {
       branchId: session.branchId,
       customerId: session.customerId,
       memoryScope: session.customerId ? this.memoryScope(session) : undefined,
-      channel: session.phone.startsWith('tg_') ? 'TELEGRAM' : 'WHATSAPP',
+      channel: 'WHATSAPP',
       mode: 'PROACTIVE',
       currentMessage,
       cart: [{
@@ -900,7 +900,6 @@ export class CoffeeOrderService {
       const branchId = session.branchId;
       if (!cafeId || !branchId) throw new Error('Missing cafe or branch');
 
-      const isTelegram = session.phone.startsWith('tg_');
       const product = await this.matchCoffeeProduct(cafeId);
       if (!product) {
         return 'عذراً، منتج القهوة مش متاح حالياً. ارجع لنا تاني.';
@@ -973,9 +972,9 @@ export class CoffeeOrderService {
             code,
             customerId: customer.id,
             status: 'NEW',
-            type: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
-            sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
-            source: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
+            type: 'WHATSAPP',
+            sourceType: 'WHATSAPP_ORDER',
+            source: 'WHATSAPP',
             total: new Prisma.Decimal(totalAmount),
             items: {
               create: orderItems,
@@ -995,14 +994,14 @@ export class CoffeeOrderService {
             branchId,
             code,
             customerName: session.customerName || 'عميل',
-            customerPhone: session.phone.replace('tg_', ''),
+            customerPhone: session.phone,
             customerId: customer.id,
             notes: notesParts.join(' | '),
             createdById: staff?.id ?? null,
             status: 'NEW',
             total: new Prisma.Decimal(totalAmount),
             orderType: 'DELIVERY',
-            sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
+            sourceType: 'WHATSAPP_ORDER',
             items: {
               create: orderItems.map((item) => ({ ...item, cafeId })),
             },
@@ -1030,7 +1029,7 @@ export class CoffeeOrderService {
           status: 'NEW',
           total: Number(order.total),
           customerName: session.customerName || 'عميل',
-          sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
+          sourceType: 'WHATSAPP_ORDER',
           cafeId,
         },
       });
@@ -1105,7 +1104,7 @@ export class CoffeeOrderService {
     return {
       cafeId: session.cafeId,
       customerId: session.customerId,
-      channel: session.phone.startsWith('tg_') ? 'TELEGRAM' : 'WHATSAPP',
+      channel: 'WHATSAPP',
       channelIdentity: session.phone,
     };
   }

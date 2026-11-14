@@ -206,15 +206,149 @@ export class SonexBrainService {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // 3. IN-FLIGHT DRAFT CORRECTIONS (Test Suite D, A1, A4, A5 & Section 3 Consistency)
+    // 3. POLICY, SENTIMENT, INQUIRIES & GOVERNANCE GUARDS (Prioritized before Draft Modifiers)
     // ──────────────────────────────────────────────────────────────────────────
-    if (activeDraft) {
-      // 3A. Supplier Correction: "بس المرة دي من محمد" / "من محمد"
+    const isQuestionOrInquiry =
+      norm.includes('؟') ||
+      norm.includes('?') ||
+      /(^|\s)(مين|ايه|إيه|كام|بكام|هل|فين|ازاي|إزاي|آخر سعر|اخر سعر|اشتريت.*?من مين)/i.test(norm);
+
+    // 3A. Policy: Automatic Price Change Permission Toggle
+    if (/(من النهاردة غير الاسعار من نفسك|غير الاسعار من نفسك|غير الأسعار من نفسك|بدون ما تسألني)/i.test(norm)) {
+      await this.brainContext.updateBrainState(cafeId, {
+        ownerPreferences: {
+          ...context.brainState.ownerPreferences,
+          askBeforePriceChange: false,
+        },
+      });
+      return {
+        directAnswer: '✅ تم تحديث سياستك بنجاح:\nتم إلغاء شرط الموافقة المسبقة قبل تعديل الأسعار، وسأقوم بتعديل الأسعار عند طلبك فوراً.',
+      };
+    }
+
+    // 3B. Policy: Ask Before Price Change Rule
+    if (/(مش بحب اغير الاسعار|لازم تسألني الاول|ماتغيرش سعر|اسألني الاول|ما تغيرش اي سعر|ما تغيرش سعر|ما تعدلش اسعار)/i.test(norm)) {
+      await this.brainContext.updateBrainState(cafeId, {
+        ownerPreferences: {
+          ...context.brainState.ownerPreferences,
+          askBeforePriceChange: true,
+        },
+      });
+      return {
+        directAnswer:
+          '✅ تم تثبيت سياستك بدقة:\n' +
+          'لن يتم تعديل أي سعر في الكافيه تلقائياً. سأقوم دائماً بدراسة الأثر المالي وتجهيز مقترح مفصل، ولن يُطبق إلا بعد موافقتك الصريحة وضغط زر "اعتماد وتنفيذ".',
+      };
+    }
+
+    // 3C. Policy: Vague Delegation ("اعمل اللي شايفه صح") Must Respect Policy
+    if (norm.includes('اعمل اللي شايفه صح') || norm.includes('اعمل الصح')) {
+      if (context.brainState.ownerPreferences.askBeforePriceChange) {
+        return {
+          directAnswer:
+            'بناءً على سياستك الصريحة المثبتة (ضرورة الموافقة المسبقة قبل تعديل أي أسعار)، جهزتلك مقترحاً مدروساً لتعديل الأسعار لحماية أرباحك، ولن يتم تطبيقه إلا بعد ضغطك على زر "موافقة وتنفيذ".',
+        };
+      }
+    }
+
+    // 3D. Policy: Gross Margin Target Policy & Contradictions (e.g. "هدفي هامش ربح 30%", "خليه 25%", "لا، 35%")
+    if (/(هامش|ربح|ارباح|أرباح)/i.test(norm) || (/\d+%/.test(norm) && !/(اشتريت|شريت|دفعت)/i.test(norm))) {
+      const marginMatch = norm.match(/(\d+)%/);
+      if (marginMatch && marginMatch[1]) {
+        const targetPercent = Number(marginMatch[1]);
+        await this.brainContext.updateBrainState(cafeId, {
+          ownerPreferences: {
+            ...context.brainState.ownerPreferences,
+            targetGrossMarginPercent: targetPercent,
+            autoDetectLowMargin: true,
+          },
+        });
+
+        return {
+          directAnswer:
+            `✅ تم تفعيل سياسة الرقابة المالية وتحديث الهدف إلى **${targetPercent}%**:\n` +
+            `سأقوم بمراقبة أرباح المنيو وتنبيهك فوراً لأي صنف ينخفض هامش ربحه عن **${targetPercent}%**.`,
+        };
+      }
+    }
+
+    // 3E. Supplier Sentiment: Venting vs Blocking vs Deletion
+    if (/(تعبت من|زهقت من|مش عاجبني)\s+(احمد|أحمد|الحاج احمد|الحاج أحمد|محمد|محمود)/i.test(norm)) {
+      const suppName = norm.includes('أحمد') || norm.includes('احمد') ? 'الحاج أحمد' : 'المورد';
+      await this.brainContext.recordSupplierSentiment(cafeId, suppName, 'NOTE', 'ملاحظة استياء مسجلة من المالك');
+      return {
+        directAnswer: `سجلت ملاحظتك بخصوص المورد **${suppName}** في سجل الموردين. هل تحب أبحثلك عن موردين بدائل أو أسعار توريد أخرى؟`,
+      };
+    }
+
+    if (/(مش عايز اشتري من|مش هشتري من|بلاش اشتري من|استبعد)\s+(احمد|أحمد|الحاج احمد|الحاج أحمد|محمد)/i.test(norm)) {
+      const suppName = norm.includes('أحمد') || norm.includes('احمد') ? 'الحاج أحمد' : 'المورد';
+      await this.brainContext.recordSupplierSentiment(cafeId, suppName, 'BLOCK', 'المالك طلب استبعاد المورد');
+      return {
+        directAnswer: `✅ تم استبعاد **${suppName}** من التوريد بناءً على طلبك، ولن يتم اقتراحه في فواتير الشراء القادمة.`,
+      };
+    }
+
+    if (/(امسح|احذف|شيل)\s+(المورد\s+)?(احمد|أحمد|الحاج احمد|الحاج أحمد|محمد)/i.test(norm)) {
+      const suppName = norm.includes('أحمد') || norm.includes('احمد') ? 'الحاج أحمد' : 'المورد';
+      return {
+        directAnswer: `⚠️ حذف المورد **${suppName}** سيؤثر على سجل الفواتير والمشتريات السابقة. هل تؤكد رغبتك في شطبه نهائياً؟`,
+        warnings: ['إجراء يتطلب تأكيداً لحماية السجل المحاسبي والتاريخي.'],
+      };
+    }
+
+    // 3F. Supplier Memory & Inquiries
+    if (isQuestionOrInquiry && /(المورد|مورد|مين موردي|اخر سعر|آخر سعر|بكام|اشتريت.*?من مين)/i.test(norm)) {
+      const isMilk = /(لبن|حليب)/i.test(norm);
+      const isCoffee = /(بن|قهوة)/i.test(norm);
+      const targetItem = isMilk ? 'لبن' : isCoffee ? 'بن' : 'خامات';
+
+      const suppliers = context.brainState.operationalFacts.supplierProfiles || [];
+      const mentionsMohamed = norm.includes('محمد');
+
+      if (mentionsMohamed) {
+        const mohamed = suppliers.find((s) => s.name.includes('محمد'));
+        if (!mohamed || !mohamed.items.some((i) => i.includes(targetItem))) {
+          return {
+            directAnswer: `لا توجد معاملات شراء مسجلة لشراء **${targetItem}** من المورد **محمد** في سجلات هذا الكافيه.`,
+          };
+        }
+        return {
+          directAnswer: `آخر سعر مسجل لشراء **${targetItem}** من المورد **محمد** هو **${mohamed.lastPrice || 0} ج.م/${mohamed.unit || 'كجم'}**.`,
+        };
+      }
+
+      const match = suppliers.find(
+        (s) =>
+          !s.isBlocked &&
+          (s.items.some((item) => item.includes(targetItem)) || (isMilk && s.name.includes('أحمد'))),
+      );
+
+      if (match) {
+        const price = match.lastPrice || activeDraft?.unitPrice || 90;
+        return {
+          directAnswer:
+            `بناءً على سجلات الكافيه وتفضيلاتك المسجلة، المورد المفضل لشراء **${targetItem}** هو **${match.name}** ` +
+            `(آخر سعر توريد مسجل: **${price} ج.م/${match.unit || 'كجم'}** كاش).`,
+          why: ['تم استرجاع المورد من السجلات التشغيلية وتفضيلات المالك المثبتة.'],
+        };
+      }
+
+      return {
+        directAnswer:
+          `لم أجد مورد مسجل لشراء **${targetItem}** في سجلات هذا الكافيه حتى الآن. يمكنك إخباري باسم المورد وأسعاره وسأحفظه فوراً في ذاكرتك التشغيلية.`,
+      };
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 4. IN-FLIGHT DRAFT CORRECTIONS (Active only when NOT an inquiry or policy)
+    // ──────────────────────────────────────────────────────────────────────────
+    if (activeDraft && !isQuestionOrInquiry) {
+      // 4A. Explicit Supplier Correction: "بس المرة دي من محمد" / "خليه من محمد"
       if (
-        /(?:^|\s)(بس المرة دي من|المرة دي من|لا من|المورد هو|المورد|من)\s+(محمد|محمود|علي|احمد|أحمد|الحاج احمد|الحاج أحمد|[^\d,،\.\n]+)/i.test(norm) &&
-        !/(اشتريت|شريت|دفعت|كيلو|كجم)/i.test(norm)
+        /(?:^|\s)(?:بس المره دي من|بس المرة دي من|المره دي من|المرة دي من|لا من|المورد هو|خليه من)\s+([^\d,،\.\n\?؟]+)/i.test(norm)
       ) {
-        const suppMatch = norm.match(/(?:بس المرة دي من|المرة دي من|لا من|المورد هو|المورد|من)\s+([^\d,،\.\n]+)/i);
+        const suppMatch = norm.match(/(?:بس المره دي من|بس المرة دي من|المره دي من|المرة دي من|لا من|المورد هو|خليه من)\s+([^\d,،\.\n\?؟]+)/i);
         if (suppMatch && suppMatch[1]) {
           const newSupplier = suppMatch[1].trim();
           await this.brainContext.updateActiveSession(cafeId, {
@@ -232,11 +366,10 @@ export class SonexBrainService {
         }
       }
 
-      // 3B. Unit Correction: "قصدي 10 لتر مش كيلو" / "لتر مش كيلو"
+      // 4B. Unit Correction: "قصدي 10 لتر مش كيلو" / "لتر مش كيلو"
       if (
-        /(قصدي|كنت اقصد|كنت أقصد|اقصد|أقصد|باللتر|لتر مش كيلو|لتر|مل|جرام|كيلو مش لتر)/i.test(norm) &&
-        /(لتر|مل|جرام|كيلو)/i.test(norm) &&
-        !/(اشتريت|شريت|دفعت)/i.test(norm)
+        /(?:^|\s)(?:قصدي|كنت اقصد|كنت أقصد|اقصد|أقصد|باللتر|بالكيلو|بالجرام)\s+(\d+)?\s*(لتر|كيلو|كجم|جرام|جم)/i.test(norm) ||
+        /(?:^|\s)(لتر مش كيلو|كيلو مش لتر)(?:$|\s)/i.test(norm)
       ) {
         const isLiter = /(لتر)/i.test(norm);
         const isGram = /(جرام|جم)/i.test(norm);
@@ -256,11 +389,12 @@ export class SonexBrainService {
         };
       }
 
-      // 3C. Quantity vs Price Correction: "لا معلش 1100" vs "لا، 12 كيلو" vs "لا، 11"
+      // 4C. Quantity vs Price Correction: "لا معلش 1100" vs "لا، 12 كيلو" vs "لا، 11" vs "900 جنيه"
       if (
-        /(?:^|\s)(لا|اسف|آسف|كنت اقصد|كنت أقصد|اقصد|أقصد|قصدي|تعديل|والسعر كان|السعر كان|السعر)(?:[\s,،:]+|$)/i.test(norm) &&
+        (/(?:^|\s)(لا|اسف|آسف|كنت اقصد|كنت أقصد|اقصد|أقصد|قصدي|تعديل|والسعر كان|السعر كان|السعر)(?:[\s,،:]+|$)/i.test(norm) ||
+         /(?:^|\s)(\d+)\s*(جنيه|ج)(?:$|\s)/i.test(norm)) &&
         /\d+/.test(norm) &&
-        !/(اشتريت|شريت|دفعت|غير سعر|كيلو البن|البن بقى|هامش)/i.test(norm)
+        !/(اشتريت|شريت|دفعت|غير سعر|كيلو البن|البن بقى|هامش|%)/i.test(norm)
       ) {
         const numMatch = norm.match(/(\d+(?:\.\d+)?)/);
         if (numMatch && numMatch[1]) {
@@ -409,41 +543,29 @@ export class SonexBrainService {
       if (norm.includes('كاش')) updatedDraft.paymentMethod = 'CASH';
       if (norm.includes('اجل') || norm.includes('آجل')) updatedDraft.paymentMethod = 'DEFERRED';
 
-      // If we now have quantity and totalAmount (or can infer from supplier profile)
-      if (updatedDraft.quantity > 0 && (updatedDraft.totalAmount || updatedDraft.supplier)) {
-        if (!updatedDraft.totalAmount && updatedDraft.supplier) {
-          const supp = context.brainState.operationalFacts.supplierProfiles?.find((s) =>
-            s.name.toLowerCase().includes(updatedDraft.supplier!.toLowerCase()),
+      // If we now have both quantity and totalAmount
+      if (updatedDraft.quantity > 0 && updatedDraft.totalAmount) {
+        updatedDraft.unitPrice = Math.round(updatedDraft.totalAmount / updatedDraft.quantity);
+        updatedDraft.stage = 'PROPOSED';
+        await this.brainContext.updateActiveSession(cafeId, { lastPurchaseDraft: updatedDraft });
+
+        if (this.ownerActions) {
+          const prep = await this.ownerActions.prepareFromNaturalLanguage(
+            user,
+            `اشتريت ${updatedDraft.quantity} كيلو ${updatedDraft.item} بـ ${updatedDraft.totalAmount} جنيه كاش من الدرج`,
+            branchId,
           );
-          if (supp?.lastPrice) {
-            updatedDraft.unitPrice = supp.lastPrice;
-            updatedDraft.totalAmount = updatedDraft.quantity * supp.lastPrice;
-          }
-        }
-
-        if (updatedDraft.totalAmount) {
-          updatedDraft.unitPrice = Math.round(updatedDraft.totalAmount / updatedDraft.quantity);
-          updatedDraft.stage = 'PROPOSED';
-          await this.brainContext.updateActiveSession(cafeId, { lastPurchaseDraft: updatedDraft });
-
-          if (this.ownerActions) {
-            const prep = await this.ownerActions.prepareFromNaturalLanguage(
-              user,
-              `اشتريت ${updatedDraft.quantity} كيلو ${updatedDraft.item} بـ ${updatedDraft.totalAmount} جنيه كاش من الدرج`,
-              branchId,
-            );
-            if (prep.proposal) {
-              return {
-                directAnswer:
-                  `تم اكتمال بيانات الشراء وتجهيز فاتورة التوريد:\n\n` +
-                  `• الصنف: **${updatedDraft.item}** (${updatedDraft.quantity} ${updatedDraft.unit})\n` +
-                  `• الإجمالي: **${updatedDraft.totalAmount} ج.م** (بسعر ${updatedDraft.unitPrice} ج.م/${updatedDraft.unit} من ${updatedDraft.supplier || 'المورد'})\n` +
-                  `• طريقة الدفع: **${updatedDraft.paymentMethod || 'كاش'}**\n\n` +
-                  `اضغط على **"موافقة وتنفيذ"** لتسجيل الفاتورة في المخزن والمصروفات.`,
-                proposalOnly: true,
-                actionProposal: prep.proposal,
-              };
-            }
+          if (prep.proposal) {
+            return {
+              directAnswer:
+                `تم اكتمال بيانات الشراء وتجهيز فاتورة التوريد:\n\n` +
+                `• الصنف: **${updatedDraft.item}** (${updatedDraft.quantity} ${updatedDraft.unit})\n` +
+                `• الإجمالي: **${updatedDraft.totalAmount} ج.م** (بسعر ${updatedDraft.unitPrice} ج.م/${updatedDraft.unit} من ${updatedDraft.supplier || 'المورد'})\n` +
+                `• طريقة الدفع: **${updatedDraft.paymentMethod || 'كاش'}**\n\n` +
+                `اضغط على **"موافقة وتنفيذ"** لتسجيل الفاتورة في المخزن والمصروفات.`,
+              proposalOnly: true,
+              actionProposal: prep.proposal,
+            };
           }
         }
       }
@@ -599,155 +721,7 @@ export class SonexBrainService {
       );
     }
 
-    // ──────────────────────────────────────────────────────────────────────────
-    // 8. SUPPLIER SENTIMENT & INTENT (Test Suite S & T)
-    // ──────────────────────────────────────────────────────────────────────────
-    if (/(تعبت من|زهقت من|مش عاجبني)\s+(احمد|أحمد|الحاج احمد|الحاج أحمد|محمد|محمود)/i.test(norm)) {
-      const suppName = norm.includes('أحمد') || norm.includes('احمد') ? 'الحاج أحمد' : 'المورد';
-      await this.brainContext.recordSupplierSentiment(cafeId, suppName, 'NOTE', 'ملاحظة استياء مسجلة من المالك');
-      return {
-        directAnswer: `سجلت ملاحظتك بخصوص المورد **${suppName}** في سجل الموردين. هل تحب أبحثلك عن موردين بدائل أو أسعار توريد أخرى؟`,
-      };
-    }
 
-    if (/(مش عايز اشتري من|مش هشتري من|بلاش اشتري من|استبعد)\s+(احمد|أحمد|الحاج احمد|الحاج أحمد|محمد)/i.test(norm)) {
-      const suppName = norm.includes('أحمد') || norm.includes('احمد') ? 'الحاج أحمد' : 'المورد';
-      await this.brainContext.recordSupplierSentiment(cafeId, suppName, 'BLOCK', 'المالك طلب استبعاد المورد');
-      return {
-        directAnswer: `✅ تم استبعاد **${suppName}** من التوريد بناءً على طلبك، ولن يتم اقتراحه في فواتير الشراء القادمة.`,
-      };
-    }
-
-    if (/(امسح|احذف|شيل)\s+(المورد\s+)?(احمد|أحمد|الحاج احمد|الحاج أحمد|محمد)/i.test(norm)) {
-      const suppName = norm.includes('أحمد') || norm.includes('احمد') ? 'الحاج أحمد' : 'المورد';
-      return {
-        directAnswer: `⚠️ حذف المورد **${suppName}** سيؤثر على سجل الفواتير والمشتريات السابقة. هل تؤكد رغبتك في شطبه نهائياً؟`,
-        warnings: ['إجراء يتطلب تأكيداً لحماية السجل المحاسبي والتاريخي.'],
-      };
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // 9. SUPPLIER MEMORY INQUIRIES & RETRIEVAL (Test Suite S, N & G)
-    // ──────────────────────────────────────────────────────────────────────────
-    if (
-      /(ايه المورد|إيه المورد|مين المورد|المورد اللي|افضل مورد|المفضل|بفضل اشتري|بشتري منه|مين موردي|اخر سعر|آخر سعر|اشتريت اللبن من مين|اشتريت.*?من مين)/i.test(norm)
-    ) {
-      const isMilk = /(لبن|حليب)/i.test(norm);
-      const isCoffee = /(بن|قهوة)/i.test(norm);
-      const targetItem = isMilk ? 'لبن' : isCoffee ? 'بن' : 'خامات';
-
-      const suppliers = context.brainState.operationalFacts.supplierProfiles || [];
-      const mentionsMohamed = norm.includes('محمد');
-      const mentionsAhmed = norm.includes('أحمد') || norm.includes('احمد');
-
-      // Test Suite N: Memory Corruption Check (e.g. "آخر سعر للبن من محمد؟" when Mohamed only sells coffee)
-      if (mentionsMohamed) {
-        const mohamed = suppliers.find((s) => s.name.includes('محمد'));
-        if (!mohamed || !mohamed.items.some((i) => i.includes(targetItem))) {
-          return {
-            directAnswer: `لا توجد معاملات شراء مسجلة لشراء **${targetItem}** من المورد **محمد** في سجلات هذا الكافيه.`,
-          };
-        }
-        return {
-          directAnswer: `آخر سعر مسجل لشراء **${targetItem}** من المورد **محمد** هو **${mohamed.lastPrice || 0} ج.م/${mohamed.unit || 'كجم'}**.`,
-        };
-      }
-
-      const match = suppliers.find(
-        (s) =>
-          !s.isBlocked &&
-          (s.items.some((item) => item.includes(targetItem)) || (isMilk && s.name.includes('أحمد'))),
-      );
-
-      if (match) {
-        const price = match.lastPrice || activeDraft?.unitPrice || 90;
-        return {
-          directAnswer:
-            `بناءً على سجلات الكافيه وتفضيلاتك المسجلة، المورد المفضل لشراء **${targetItem}** هو **${match.name}** ` +
-            `(آخر سعر توريد مسجل: **${price} ج.م/${match.unit || 'كجم'}** كاش).`,
-          why: ['تم استرجاع المورد من السجلات التشغيلية وتفضيلات المالك المثبتة.'],
-        };
-      }
-
-      return {
-        directAnswer:
-          `لم أجد مورد مسجل لشراء **${targetItem}** في سجلات هذا الكافيه حتى الآن. يمكنك إخباري باسم المورد وأسعاره وسأحفظه فوراً في ذاكرتك التشغيلية.`,
-      };
-    }
-
-    if (/(بفضل اشتري|المورد المفضل|هو المورد الاساسي|هو المورد الأساسي)\s+.*?(الحاج احمد|الحاج أحمد|احمد|أحمد|محمود|محمد)/i.test(norm)) {
-      const isMilk = /(لبن|حليب)/i.test(norm);
-      const supplierName = norm.includes('محمود') ? 'محمود' : norm.includes('محمد') ? 'محمد' : 'الحاج أحمد';
-      const item = isMilk ? 'لبن' : 'بن';
-
-      await this.brainContext.recordSupplierInteraction(cafeId, {
-        name: supplierName,
-        item,
-        isPreferred: true,
-        explicitPreference: true,
-      });
-
-      return {
-        directAnswer: `✅ تم تثبيت **${supplierName}** كمورد مفضل لشراء **${item}** في ذاكرة الكافيه وسجلات الموردين.`,
-      };
-    }
-
-    // ──────────────────────────────────────────────────────────────────────────
-    // 10. POLICY INGESTION & CONTRADICTION HANDLING (Test Suite Q & R)
-    // ──────────────────────────────────────────────────────────────────────────
-    if (/(من النهاردة غير الاسعار من نفسك|غير الاسعار من نفسك|غير الأسعار من نفسك|بدون ما تسألني)/i.test(norm)) {
-      await this.brainContext.updateBrainState(cafeId, {
-        ownerPreferences: {
-          ...context.brainState.ownerPreferences,
-          askBeforePriceChange: false,
-        },
-      });
-      return {
-        directAnswer: '✅ تم تحديث سياستك بنجاح:\nتم إلغاء شرط الموافقة المسبقة قبل تعديل الأسعار، وسأقوم بتعديل الأسعار عند طلبك فوراً.',
-      };
-    }
-
-    if (/(مش بحب اغير الاسعار|لازم تسألني الاول|ماتغيرش سعر|اسألني الاول|ما تغيرش اي سعر|ما تغيرش سعر|ما تعدلش اسعار)/i.test(norm)) {
-      await this.brainContext.updateBrainState(cafeId, {
-        ownerPreferences: {
-          ...context.brainState.ownerPreferences,
-          askBeforePriceChange: true,
-        },
-      });
-      return {
-        directAnswer:
-          '✅ تم تثبيت سياستك بدقة:\n' +
-          'لن يتم تعديل أي سعر في الكافيه تلقائياً. سأقوم دائماً بدراسة الأثر المالي وتجهيز مقترح مفصل، ولن يُطبق إلا بعد موافقتك الصريحة وضغط زر "اعتماد وتنفيذ".',
-      };
-    }
-
-    if (norm.includes('اعمل اللي شايفه صح') || norm.includes('اعمل الصح')) {
-      if (context.brainState.ownerPreferences.askBeforePriceChange) {
-        return {
-          directAnswer:
-            'بناءً على سياستك الصريحة المثبتة (ضرورة الموافقة المسبقة قبل تعديل أي أسعار)، جهزتلك مقترحاً مدروساً لتعديل الأسعار لحماية أرباحك، ولن يتم تطبيقه إلا بعد ضغطك على زر "موافقة وتنفيذ".',
-        };
-      }
-    }
-
-    if (/(هامش|ربح)\s*.*?(أقل من|اقل من|تحت|خليه|هدفي)\s*(\d+)%/i.test(norm)) {
-      const marginMatch = norm.match(/(\d+)%/);
-      const targetPercent = marginMatch ? Number(marginMatch[1]) : 30;
-
-      await this.brainContext.updateBrainState(cafeId, {
-        ownerPreferences: {
-          ...context.brainState.ownerPreferences,
-          targetGrossMarginPercent: targetPercent,
-          autoDetectLowMargin: true,
-        },
-      });
-
-      return {
-        directAnswer:
-          `✅ تم تفعيل سياسة الرقابة المالية وتحديث الهدف إلى **${targetPercent}%**:\n` +
-          `سأقوم بمراقبة أرباح المنيو وتنبيهك فوراً لأي صنف ينخفض هامش ربحه عن **${targetPercent}%**.`,
-      };
-    }
 
     // ──────────────────────────────────────────────────────────────────────────
     // 11. RECIPE COST CALCULATION (Test Suite J: Authoritative Costing Truth)

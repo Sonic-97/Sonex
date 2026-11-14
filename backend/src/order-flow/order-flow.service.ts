@@ -564,7 +564,7 @@ ${lines.join('\n')}
       cafeId: session.cafeId!,
       branchId: session.branchId!,
       customerId: session.customerId,
-      channel: session.phone.startsWith('tg_') ? 'TELEGRAM' : 'WHATSAPP',
+      channel: 'WHATSAPP',
       channelIdentity: session.phone,
       message,
       lastBotQuestion: session.customerNeedLastQuestion,
@@ -683,7 +683,7 @@ ${lines.join('\n')}
         cafeId: session.cafeId!,
         branchId: session.branchId!,
         customerId: session.customerId,
-        channel: session.phone.startsWith('tg_') ? 'TELEGRAM' : 'WHATSAPP',
+        channel: 'WHATSAPP',
         channelIdentity: session.phone,
         message: session.customerNeedOriginalMessage || message,
       }, 'CONFIRMED_AFTER_STAGE_7_OFFER');
@@ -983,7 +983,6 @@ ${lines.join('\n')}
       const targetBranchId = session.branchId;
       if (!cafeId || !targetBranchId) throw new Error('Missing cafe or branch');
 
-      const isTelegram = session.phone.startsWith('tg_');
       const items = session.aiParsedItems || [];
       if (!items.length) throw new Error('No items to order');
 
@@ -1050,9 +1049,9 @@ ${lines.join('\n')}
             code,
             customerId: customer.id,
             status: 'NEW',
-            type: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
-            sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
-            source: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
+            type: 'WHATSAPP',
+            sourceType: 'WHATSAPP_ORDER',
+            source: 'WHATSAPP',
             total: new Prisma.Decimal(totalAmount),
             items: { create: orderItems },
           },
@@ -1067,14 +1066,14 @@ ${lines.join('\n')}
           data: {
             cafeId, branchId: targetBranchId, code,
             customerName: session.customerName || 'عميل',
-            customerPhone: session.phone.replace('tg_', ''),
+            customerPhone: session.phone,
             customerId: customer.id,
             notes: orderItems.map(i => i.notes).filter(Boolean).join(' | ') || null,
             createdById: staff?.id ?? null,
             status: 'NEW',
             total: new Prisma.Decimal(totalAmount),
             orderType: 'DELIVERY',
-            sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
+            sourceType: 'WHATSAPP_ORDER',
             items: {
               create: orderItems.map(i => ({
                 cafeId,
@@ -1101,7 +1100,7 @@ ${lines.join('\n')}
           id: order.id, code: order.code, status: 'NEW',
           total: Number(order.total),
           customerName: session.customerName || 'عميل',
-          sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER', cafeId,
+          sourceType: 'WHATSAPP_ORDER', cafeId,
         },
       });
 
@@ -1158,7 +1157,7 @@ ${lines.join('\n')}
       const result = await this.customerMemory.applyExplicitCommand({
         cafeId,
         customerId: customer.id,
-        channel: phone.startsWith('tg_') ? 'TELEGRAM' : 'WHATSAPP',
+        channel: 'WHATSAPP',
         channelIdentity: phone,
       }, message);
       return result.handled ? result.response! : null;
@@ -1172,7 +1171,7 @@ ${lines.join('\n')}
     return {
       cafeId: session.cafeId,
       customerId: session.customerId,
-      channel: session.phone.startsWith('tg_') ? 'TELEGRAM' : 'WHATSAPP',
+      channel: 'WHATSAPP',
       channelIdentity: session.phone,
     };
   }
@@ -1318,8 +1317,6 @@ ${lines.join('\n')}
         (total, item) => total + Number(item.product.price) * item.quantity,
         0,
       );
-      const isTelegram = session.phone.startsWith('tg_');
-
       const order = await this.prisma.$transaction(async (tx) => {
         const customer = await tx.customer.findFirst({
           where: { id: session.customerId, cafeId, phone: session.phone },
@@ -1353,9 +1350,9 @@ ${lines.join('\n')}
             code,
             customerId: customer.id,
             status: 'NEW',
-            type: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
-            sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
-            source: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
+            type: 'WHATSAPP',
+            sourceType: 'WHATSAPP_ORDER',
+            source: 'WHATSAPP',
             total: new Prisma.Decimal(totalAmount),
             items: {
               create: repeatItems.map((item) => ({
@@ -1376,14 +1373,14 @@ ${lines.join('\n')}
             branchId,
             code,
             customerName: customer.name || session.customerName || 'عميل',
-            customerPhone: session.phone.replace('tg_', ''),
+            customerPhone: session.phone,
             customerId: customer.id,
             notes: null,
             createdById: staff?.id ?? null,
             status: 'NEW',
             total: new Prisma.Decimal(totalAmount),
             orderType: 'DELIVERY',
-            sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
+            sourceType: 'WHATSAPP_ORDER',
             items: {
               create: repeatItems.map((item) => ({
                 cafeId,
@@ -1415,7 +1412,7 @@ ${lines.join('\n')}
           status: 'NEW',
           total: Number(order.total),
           customerName: session.customerName || 'عميل',
-          sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
+          sourceType: 'WHATSAPP_ORDER',
           cafeId,
         },
       });
@@ -1492,7 +1489,7 @@ ${lines.join('\n')}
       branchId: session.branchId,
       customerId: session.customerId,
       memoryScope: session.customerId ? this.memoryScope(session) : undefined,
-      channel: session.phone.startsWith('tg_') ? 'TELEGRAM' : 'WHATSAPP',
+      channel: 'WHATSAPP',
       mode,
       currentMessage,
       cart,
@@ -2079,8 +2076,6 @@ ${lines.join('\n')}
       const targetBranchId = session.branchId;
       if (!cafeId || !targetBranchId) throw new Error('Missing cafe or branch');
 
-      const isTelegram = session.phone.startsWith('tg_');
-
       const productIds = session.usualOrderItems!.map(i => i.productId);
       const products = await this.prisma.product.findMany({
         where: { id: { in: productIds }, cafeId },
@@ -2129,9 +2124,9 @@ ${lines.join('\n')}
             code,
             customerId: customer.id,
             status: 'NEW',
-            type: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
-            sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
-            source: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
+            type: 'WHATSAPP',
+            sourceType: 'WHATSAPP_ORDER',
+            source: 'WHATSAPP',
             total: new Prisma.Decimal(totalAmount),
             items: {
               create: products.map(p => ({
@@ -2154,14 +2149,14 @@ ${lines.join('\n')}
             branchId: targetBranchId,
             code,
             customerName: session.customerName || 'عميل',
-            customerPhone: session.phone.replace('tg_', ''),
+            customerPhone: session.phone,
             customerId: customer.id,
             notes: null,
             createdById: staff?.id ?? null,
             status: 'NEW',
             total: new Prisma.Decimal(totalAmount),
             orderType: 'DELIVERY',
-            sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
+            sourceType: 'WHATSAPP_ORDER',
             items: {
               create: products.map(p => ({
                 cafeId,
@@ -2194,7 +2189,7 @@ ${lines.join('\n')}
           status: 'NEW',
           total: Number(order.total),
           customerName: session.customerName || 'عميل',
-          sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
+          sourceType: 'WHATSAPP_ORDER',
           cafeId,
         },
       });
@@ -2216,8 +2211,6 @@ ${lines.join('\n')}
   private async confirmOrder(session: OrderFlowSession): Promise<string> {
     try {
       const order = await this.createOrder(session) as any;
-      const isTelegram = session.phone.startsWith('tg_');
-
       this.eventsService.broadcast('order.created', {
         orderId: order.id,
         code: order.code,
@@ -2236,7 +2229,7 @@ ${lines.join('\n')}
           status: 'NEW',
           total: Number(order.total),
           customerName: session.customerName || 'عميل',
-          sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
+          sourceType: 'WHATSAPP_ORDER',
           cafeId: session.cafeId,
         },
       });
@@ -2267,7 +2260,6 @@ ${lines.join('\n')}
 
   private async createOrder(session: OrderFlowSession) {
     const cafeId = session.cafeId;
-    const isTelegram = session.phone.startsWith('tg_');
     const idempotencyKey = cafeId ? `orderflow:${cafeId}:${session.phone}` : undefined;
 
     if (idempotencyKey && cafeId) {
@@ -2368,9 +2360,9 @@ ${lines.join('\n')}
           code,
           customerId: customer.id,
           status: 'NEW',
-          type: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
-          sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
-          source: isTelegram ? 'TELEGRAM' : 'WHATSAPP',
+          type: 'WHATSAPP',
+          sourceType: 'WHATSAPP_ORDER',
+          source: 'WHATSAPP',
           total: new Prisma.Decimal(totalAmount),
           items: {
             create: orderItems,
@@ -2393,14 +2385,14 @@ ${lines.join('\n')}
           branchId: targetBranchId,
           code,
           customerName: session.customerName || 'عميل',
-          customerPhone: session.phone.replace('tg_', ''),
+          customerPhone: session.phone,
           customerId: customer.id,
           notes: notesParts.join(' | ') || null,
           createdById: staff?.id ?? null,
           status: 'NEW',
           total: new Prisma.Decimal(totalAmount),
           orderType: 'DELIVERY',
-          sourceType: isTelegram ? 'TELEGRAM_ORDER' : 'WHATSAPP_ORDER',
+          sourceType: 'WHATSAPP_ORDER',
           items: {
             create: orderItems.map((item) => ({ ...item, cafeId: cafeId! })),
           },
